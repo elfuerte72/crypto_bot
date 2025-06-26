@@ -5,6 +5,11 @@ name: Security Checks
     - cron: '0 2 * * 1'  # Weekly on Monday at 2 AM
   workflow_dispatch:
 
+# Рекомендуемые разрешения для безопасности
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   dependency-check:
     name: Dependency Security Scan
@@ -15,9 +20,13 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.13"
+        cache: 'pip'
+        cache-dependency-path: |
+          **/pyproject.toml
+          **/requirements*.txt
 
     - name: Install dependencies
       run: |
@@ -36,10 +45,12 @@ jobs:
         pip-audit
 
     - name: Upload security reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: security-reports
+        name: security-reports-${{ github.run_id }}
         path: |
           safety-report.json
           pip-audit-report.json
+        retention-days: 90
+        compression-level: 6

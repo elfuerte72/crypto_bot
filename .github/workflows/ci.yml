@@ -10,18 +10,26 @@ name: CI/CD Pipeline
 
 env:
   PYTHON_VERSION: "3.11"
-  POETRY_VERSION: "1.6.1"
+  POETRY_VERSION: "1.8.3"
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+
+# Рекомендуемые разрешения для безопасности
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+  actions: read
 
 jobs:
   # Job 1: Code Quality and Testing
   test:
-    name: Test & Quality Check
+    name: Test & Quality Check (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
 
     services:
       redis:
@@ -41,17 +49,13 @@ jobs:
         fetch-depth: 0
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+        cache: 'pip'
+        cache-dependency-path: |
+          **/pyproject.toml
+          **/requirements*.txt
 
     - name: Install dependencies
       run: |
@@ -111,22 +115,25 @@ jobs:
         PYTHONPATH: ${{ github.workspace }}/src
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results-${{ matrix.python-version }}
+        name: test-results-${{ matrix.python-version }}-${{ github.run_id }}
         path: |
           htmlcov/
           coverage.xml
           bandit-report.json
+        retention-days: 30
+        compression-level: 6
 
   # Job 2: Build Docker Image
   build:
@@ -168,7 +175,7 @@ jobs:
 
     - name: Build and push Docker image
       id: build
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: .
         platforms: linux/amd64,linux/arm64
@@ -179,6 +186,8 @@ jobs:
         cache-to: type=gha,mode=max
         build-args: |
           BUILDKIT_INLINE_CACHE=1
+        provenance: true
+        sbom: true
 
     - name: Output image
       id: image
@@ -201,10 +210,18 @@ jobs:
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
+
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-scan-results-${{ github.run_id }}
+        path: trivy-results.sarif
+        retention-days: 90
 
   # Job 4: Deploy to Staging
   deploy-staging:
@@ -251,6 +268,16 @@ jobs:
         echo "Running health checks on staging environment..."
         # Add health check commands here
         # curl -f https://crypto-bot-staging.example.com/health || exit 1
+
+    - name: Upload deployment logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: staging-deployment-logs-${{ github.run_id }}
+        path: |
+          deploy-staging.sh
+          *.log
+        retention-days: 30
 
   # Job 5: Deploy to Production
   deploy-production:
@@ -302,11 +329,38 @@ jobs:
         echo "Version: ${{ github.event.release.tag_name }}"
         echo "Image: ${{ needs.build.outputs.image }}"
 
-  # Job 6: Cleanup
+    - name: Upload deployment logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: production-deployment-logs-${{ github.run_id }}
+        path: |
+          deploy-production.sh
+          *.log
+        retention-days: 90
+
+  # Job 6: Merge Artifacts (New v4 Feature)
+  merge-artifacts:
+    name: Merge Test Artifacts
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: always()
+
+    steps:
+    - name: Merge all test artifacts
+      uses: actions/upload-artifact/merge@v4
+      with:
+        name: all-test-results-${{ github.run_id }}
+        pattern: test-results-*
+        delete-merged: true
+        retention-days: 30
+        compression-level: 9
+
+  # Job 7: Cleanup
   cleanup:
     name: Cleanup
     runs-on: ubuntu-latest
-    needs: [deploy-staging, deploy-production]
+    needs: [deploy-staging, deploy-production, merge-artifacts]
     if: always()
 
     steps:
