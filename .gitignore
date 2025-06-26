@@ -149,3 +149,8 @@ logs/
 data/
 *.pid
 *.lock
+
+# Backup files from simplification
+*-backup*
+*-complex-backup*
+backup-complex-tests/

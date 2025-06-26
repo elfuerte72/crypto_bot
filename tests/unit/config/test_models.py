@@ -515,7 +515,7 @@ class TestSettings:
         assert prod_settings.is_production is True
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_settings() -> Settings:
     """Fixture providing sample settings for testing."""
     settings = Settings()

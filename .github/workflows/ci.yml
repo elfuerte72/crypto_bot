@@ -1,34 +1,22 @@
-name: CI/CD Pipeline
+name: Simple CI
 
-"on":
+on:
   push:
-    branches: [ main, dev, develop ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main, dev, develop ]
-  release:
-    types: [ published ]
+    branches: [ main, dev ]
 
-env:
-  PYTHON_VERSION: "3.11"
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
-# Recommended permissions for security
 permissions:
   contents: read
-  packages: write
-  security-events: write
-  actions: read
 
 jobs:
-  # Job 1: Code Quality and Testing
   test:
-    name: Test & Quality Check (${{ matrix.python-version }})
+    name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12"]
 
     services:
       redis:
@@ -39,125 +27,45 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 3
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
-        cache-dependency-path: |
-          **/pyproject.toml
-          **/requirements*.txt
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[dev,test]"
+        pip install -e ".[test]"
 
-    - name: Create .env file for testing
+    - name: Create test .env file
       run: |
         cat > .env << EOF
-        # Test environment variables
         BOT_TOKEN=test_token_123456789
         RAPIRA_API_URL=https://api.rapira.test
         RAPIRA_API_KEY=test_api_key
         REDIS_URL=redis://localhost:6379/0
         LOG_LEVEL=DEBUG
         ENVIRONMENT=test
-
-        # Admin settings
-        ADMIN_USER_IDS=123456789,987654321
-
-        # Default markup rates (in percentages)
-        DEFAULT_MARKUP_RATE=2.5
-
-        # Manager assignments (telegram_id:currency_pair format)
-        MANAGER_ASSIGNMENTS=123456789:USD_RUB,987654321:EUR_RUB
-
-        # Cache settings
-        CACHE_TTL_SECONDS=300
-
-        # Rate limiting
-        RATE_LIMIT_REQUESTS=10
-        RATE_LIMIT_WINDOW=60
         EOF
 
-    - name: Run code formatting check (Black)
-      run: black --check --diff src tests
-      continue-on-error: false
-
-    - name: Run import sorting check (isort)
-      run: isort --check-only --diff src tests
-      continue-on-error: false
-
-    - name: Run linting (Ruff)
-      run: ruff check src tests
-      continue-on-error: false
-
-    - name: Run type checking (MyPy)
-      run: mypy src
-      continue-on-error: false
-
-    - name: Run security checks (Bandit)
-      run: |
-        bandit -r src -f json -o bandit-report.json || true
-        bandit -r src
-      continue-on-error: true
-
-    - name: Run tests with coverage
-      run: |
-        pytest -v --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=0
+    - name: Run tests
+      run: pytest tests/ -v
       env:
         PYTHONPATH: ${{ github.workspace }}/src
-      continue-on-error: false
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      if: always()
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
-        token: ${{ secrets.CODECOV_TOKEN }}
-
-    - name: Create artifact directories
-      if: always()
-      run: |
-        mkdir -p htmlcov
-        touch coverage.xml
-        touch bandit-report.json
-
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-results-${{ matrix.python-version }}-${{ github.run_id }}
-        path: |
-          htmlcov/
-          coverage.xml
-          bandit-report.json
-        retention-days: 30
-        compression-level: 6
-        if-no-files-found: warn
-
-  # Job 2: Build Docker Image
+  # Optional: Simple Docker build for main branch only
   build:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: test
-    if: github.event_name == 'push' || github.event_name == 'release'
-
-    outputs:
-      image: ${{ steps.image.outputs.image }}
-      digest: ${{ steps.build.outputs.digest }}
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
     - name: Checkout code
@@ -166,223 +74,12 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=semver,pattern={{major}}
-          type=sha,prefix={{branch}}-
-
-    - name: Build and push Docker image
-      id: build
+    - name: Build Docker image
       uses: docker/build-push-action@v6
       with:
         context: .
-        platforms: linux/amd64,linux/arm64
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        platforms: linux/amd64
+        push: false
+        tags: crypto-bot:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        build-args: |
-          BUILDKIT_INLINE_CACHE=1
-        provenance: true
-        sbom: true
-
-    - name: Output image
-      id: image
-      run: |
-        echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}" >> $GITHUB_OUTPUT
-
-  # Job 3: Security Scanning
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' || github.event_name == 'release'
-
-    steps:
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ needs.build.outputs.image }}
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-
-    - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
-
-    - name: Upload security scan results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: security-scan-results-${{ github.run_id }}
-        path: trivy-results.sarif
-        retention-days: 90
-        if-no-files-found: warn
-
-  # Job 4: Deploy to Staging
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [test, build]
-    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
-    environment:
-      name: staging
-      url: https://crypto-bot-staging.example.com
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Deploy to staging
-      run: |
-        echo "Deploying ${{ needs.build.outputs.image }} to staging..."
-        # Here would be actual deployment commands
-        # For example: kubectl, docker-compose, or cloud provider CLI
-
-        # Example deployment script
-        cat > deploy-staging.sh << 'EOF'
-        #!/bin/bash
-        set -e
-
-        echo "Starting staging deployment..."
-
-        # Update docker-compose for staging
-        export IMAGE_TAG="${{ needs.build.outputs.digest }}"
-        export ENVIRONMENT="staging"
-
-        # Deploy using docker-compose (example)
-        # docker-compose -f docker-compose.staging.yml up -d
-
-        echo "Staging deployment completed successfully"
-        EOF
-
-        chmod +x deploy-staging.sh
-        ./deploy-staging.sh
-
-    - name: Run health check
-      run: |
-        echo "Running health checks on staging environment..."
-        # Add health check commands here
-        # curl -f https://crypto-bot-staging.example.com/health || exit 1
-
-    - name: Upload deployment logs
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: staging-deployment-logs-${{ github.run_id }}
-        path: |
-          deploy-staging.sh
-          *.log
-        retention-days: 30
-        if-no-files-found: ignore
-
-  # Job 5: Deploy to Production
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [test, build, security]
-    if: github.event_name == 'release'
-    environment:
-      name: production
-      url: https://crypto-bot.example.com
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Deploy to production
-      run: |
-        echo "Deploying ${{ needs.build.outputs.image }} to production..."
-
-        # Example production deployment script
-        cat > deploy-production.sh << 'EOF'
-        #!/bin/bash
-        set -e
-
-        echo "Starting production deployment..."
-
-        # Update docker-compose for production
-        export IMAGE_TAG="${{ needs.build.outputs.digest }}"
-        export ENVIRONMENT="production"
-
-        # Deploy using docker-compose (example)
-        # docker-compose -f docker-compose.prod.yml up -d
-
-        echo "Production deployment completed successfully"
-        EOF
-
-        chmod +x deploy-production.sh
-        ./deploy-production.sh
-
-    - name: Run health check
-      run: |
-        echo "Running health checks on production environment..."
-        # Add health check commands here
-        # curl -f https://crypto-bot.example.com/health || exit 1
-
-    - name: Notify deployment success
-      run: |
-        echo "🚀 Production deployment successful!"
-        echo "Version: ${{ github.event.release.tag_name }}"
-        echo "Image: ${{ needs.build.outputs.image }}"
-
-    - name: Upload deployment logs
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: production-deployment-logs-${{ github.run_id }}
-        path: |
-          deploy-production.sh
-          *.log
-        retention-days: 90
-        if-no-files-found: ignore
-
-  # Job 6: Merge Artifacts (New v4 Feature)
-  merge-artifacts:
-    name: Merge Test Artifacts
-    runs-on: ubuntu-latest
-    needs: [test]
-    if: always() && needs.test.result != 'cancelled'
-
-    steps:
-    - name: Merge all test artifacts
-      uses: actions/upload-artifact/merge@v4
-      with:
-        name: all-test-results-${{ github.run_id }}
-        pattern: test-results-*
-        delete-merged: true
-        retention-days: 30
-        compression-level: 9
-      continue-on-error: true
-
-  # Job 7: Cleanup
-  cleanup:
-    name: Cleanup
-    runs-on: ubuntu-latest
-    needs: [deploy-staging, deploy-production, merge-artifacts]
-    if: always()
-
-    steps:
-    - name: Clean up old images
-      run: |
-        echo "Cleaning up old container images..."
-        # Add cleanup commands here if needed
-        # For example, remove old images from registry
