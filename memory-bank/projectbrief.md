@@ -1,9 +1,9 @@
 # Project Brief
 
 ## Project Overview
-**Project Name:** Crypto Bot  
-**Project Type:** [To be determined]  
-**Created:** [Today's date]  
+**Project Name:** Crypto Bot
+**Project Type:** [To be determined]
+**Created:** [Today's date]
 
 ## Current Status
 - **Phase:** Initial Setup
