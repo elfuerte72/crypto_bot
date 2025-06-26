@@ -15,7 +15,7 @@ Telegram бот для обмена криптовалют с интеграци
 ## Поддерживаемые валютные пары
 
 - USD/RUB ↔ RUB/USD
-- EUR/RUB ↔ RUB/EUR  
+- EUR/RUB ↔ RUB/EUR
 - USD/EUR ↔ EUR/USD
 - BTC/USD ↔ USD/BTC
 - ETH/USD ↔ USD/ETH
@@ -42,7 +42,12 @@ python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # или
 venv\\Scripts\\activate  # Windows
-pip install -r requirements.txt
+
+# Установка production зависимостей
+pip install -e .
+
+# Или для разработки (включает dev инструменты)
+pip install -e ".[dev]"
 ```
 
 2. **Настройка конфигурации:**
@@ -117,21 +122,18 @@ src/
 
 ```bash
 # Установка зависимостей разработки
-pip install -r requirements.txt
+pip install -e ".[dev]"
 
 # Настройка pre-commit hooks
 pre-commit install
 
-# Форматирование кода
-black src/
-isort src/
-
-# Линтинг
-ruff src/
-mypy src/
-
-# Тестирование
-pytest tests/
+# Или используйте Makefile команды:
+make dev-setup  # Полная настройка
+make format     # Форматирование кода
+make lint       # Линтинг
+make type-check # Проверка типов
+make test       # Тестирование
+make dev-check  # Все проверки
 ```
 
 ### Тестирование
@@ -146,7 +148,7 @@ pytest --cov=src
 # Только unit тесты
 pytest -m unit
 
-# Только integration тесты  
+# Только integration тесты
 pytest -m integration
 ```
 
