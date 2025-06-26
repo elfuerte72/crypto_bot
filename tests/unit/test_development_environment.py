@@ -48,7 +48,7 @@ class TestDevelopmentEnvironment:
         assert pre_commit_file.exists(), ".pre-commit-config.yaml does not exist"
 
         # Test that it's valid YAML
-        import yaml  # type: ignore[import-untyped]
+        import yaml
 
         with open(pre_commit_file) as f:
             config = yaml.safe_load(f)

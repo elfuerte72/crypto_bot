@@ -1,500 +1,357 @@
-# CRYPTO BOT - COMPREHENSIVE IMPLEMENTATION PLAN
-
-## SYSTEM OVERVIEW
-**Task**: Telegram Crypto Exchange Rate Bot with Rapira API Integration
-**Complexity Level**: 4 (Complex System)
-**Type**: Multi-component system with API integration, user management, and notification subsystems
-**Status**: Creative Phases Complete - Ready for Implementation
-**Priority**: High
-
-### Business Objectives
-- Provide real-time currency exchange rates with configurable markup
-- Automate transaction calculations and manager notifications
-- Support 8 currency pairs in both directions (16 total combinations)
-- Enable administrative control over markup rates and manager assignments
-
-### Key Stakeholders
-- **End Users**: Clients requesting exchange rates and calculations
-- **Managers**: Staff handling transaction processing and client communication
-- **Administrators**: System operators managing configuration and monitoring
-
-## TECHNOLOGY STACK
-
-### Core Technologies
-- **Framework**: Python 3.11+ with Aiogram 3.x (Telegram Bot framework)
-- **HTTP Client**: httpx (async HTTP client for Rapira API)
-- **Configuration**: Pydantic Settings + python-dotenv
-- **Caching**: Redis (for rate caching with TTL)
-- **Logging**: structlog (structured logging)
-- **Testing**: pytest + pytest-asyncio
-- **Containerization**: Docker with multi-stage builds
-- **Process Management**: Docker with restart policies
-
-### Development Tools
-- **Linting**: ruff (fast Python linter)
-- **Formatting**: black + isort
-- **Type Checking**: mypy
-- **Dependency Management**: pip-tools or Poetry
-- **CI/CD**: GitHub Actions
-- **Monitoring**: Prometheus metrics + Grafana dashboards
-
-## TECHNOLOGY VALIDATION CHECKPOINTS ✅ COMPLETED
-- [x] Python 3.11+ environment setup verified - ✅ Python 3.13.3 confirmed
-- [x] Aiogram 3.x installation and basic bot creation - ✅ Aiogram 3.x import and bot creation tested
-- [x] httpx async client basic functionality test - ✅ Async HTTP client operations validated
-- [x] Redis connection and caching test - ✅ Redis async operations with mock testing completed
-- [x] Docker containerization test build - ✅ Dockerfile and docker-compose.yml validated
-- [x] Environment configuration loading test - ✅ Pydantic Settings with dotenv integration tested
-- [x] Basic Telegram bot hello world verification - ✅ Bot, Dispatcher, and FSM components validated
-- [x] Rapira API connection test (mock endpoint) - ✅ HTTP client with mock API responses tested
-- [x] Complete integration test with all components - ✅ Full integration flow with all services tested
-
-**Technology Validation Status**: ✅ COMPLETED (23/23 tests passed)
-**Test File**: tests/unit/validation/test_technology_validation.py
-**Validation Date**: Current session
-
-## ARCHITECTURAL ANALYSIS
-
-### System Architecture
-
-```mermaid
-graph TD
-    subgraph "External Systems"
-        TG[Telegram API]
-        RAPIRA[Rapira Exchange API]
-        REDIS[Redis Cache]
-    end
-
-    subgraph "Crypto Bot System"
-        BOT[Bot Handler Layer]
-        FSM[Finite State Machine]
-        CALC[Calculation Service]
-        RATE[Rate Service]
-        NOTIFY[Notification Service]
-        CONFIG[Configuration Service]
-        CACHE[Cache Service]
-    end
-
-    subgraph "Data Layer"
-        ENV[Environment Config]
-        LOGS[Structured Logs]
-    end
-
-    TG <--> BOT
-    BOT --> FSM
-    BOT --> CALC
-    BOT --> NOTIFY
-    CALC --> RATE
-    RATE --> RAPIRA
-    RATE --> CACHE
-    CACHE --> REDIS
-    CONFIG --> ENV
-    BOT --> LOGS
-    CALC --> LOGS
-    RATE --> LOGS
-```
-
-### Component Breakdown
-
-#### [COMP-001]: Bot Handler Layer
-**Purpose**: Handle Telegram interactions, command processing, and user interface
-**Status**: Planning
-**Dependencies**: Aiogram framework, FSM component
-**Responsible**: Core development team
-
-##### [FEAT-001]: Command Handlers
-- **Description**: Process /rate, /calc, /set_markup, /set_manager, /stats commands
-- **Status**: Planning
-- **Priority**: Critical
-- **Quality Criteria**: All commands respond within 500ms, proper error handling
-- **Progress**: 0%
-
-###### [TASK-001]: Rate Command Handler
-- **Description**: Implement /rate command with currency pair selection
-- **Status**: TODO
-- **Estimated Effort**: 4 hours
-- **Dependencies**: Rate Service, Currency pair validation
-- **Quality Gates**: Unit tests, integration tests, response time validation
-
-**Subtasks**:
-- [ ] [SUB-001]: Command registration and routing
-- [ ] [SUB-002]: Currency pair validation logic
-- [ ] [SUB-003]: Rate formatting and display
-- [ ] [SUB-004]: Error handling and user feedback
-
-###### [TASK-002]: Calculation Command Handler
-- **Description**: Implement /calc command with FSM for amount input
-- **Status**: TODO
-- **Estimated Effort**: 6 hours
-- **Dependencies**: FSM component, Calculation Service
-- **Quality Gates**: State management tests, calculation accuracy tests
-
-**Subtasks**:
-- [ ] [SUB-005]: FSM state definition for calculation flow
-- [ ] [SUB-006]: Amount input validation and parsing
-- [ ] [SUB-007]: Calculation result formatting
-- [ ] [SUB-008]: Manager notification trigger integration
-
-##### [FEAT-002]: Inline Keyboards
-- **Description**: Interactive buttons for currency pair selection and actions
-- **Status**: Planning
-- **Priority**: High
-- **Quality Criteria**: Responsive UI, clear navigation flow
-- **Progress**: 0%
-
-###### [TASK-003]: Currency Pair Selection Keyboard
-- **Description**: Create inline keyboard for 8 currency pairs in both directions
-- **Status**: TODO
-- **Estimated Effort**: 3 hours
-- **Dependencies**: None
-- **Quality Gates**: UI/UX validation, accessibility tests
-
-**Subtasks**:
-- [ ] [SUB-009]: Keyboard layout design
-- [ ] [SUB-010]: Callback data structure definition
-- [ ] [SUB-011]: Dynamic keyboard generation
-- [ ] [SUB-012]: Callback handler implementation
-
-#### [COMP-002]: Rate Service
-**Purpose**: Fetch exchange rates from Rapira API, apply markup, manage caching
-**Status**: Planning
-**Dependencies**: httpx, Redis cache, Configuration service
-**Responsible**: API integration team
-
-##### [FEAT-003]: Rapira API Integration
-- **Description**: HTTP client for fetching real-time exchange rates
-- **Status**: Planning
-- **Priority**: Critical
-- **Quality Criteria**: 99% uptime, graceful error handling, response caching
-- **Progress**: 0%
-
-###### [TASK-004]: API Client Implementation
-- **Description**: Async HTTP client with retry logic and error handling
-- **Status**: TODO
-- **Estimated Effort**: 8 hours
-- **Dependencies**: Rapira API documentation, httpx library
-- **Quality Gates**: Connection tests, retry mechanism validation, error scenario handling
-
-**Subtasks**:
-- [ ] [SUB-013]: HTTP client configuration and setup
-- [ ] [SUB-014]: API endpoint mapping for all currency pairs
-- [ ] [SUB-015]: Request/response data models
-- [ ] [SUB-016]: Retry logic with exponential backoff
-- [ ] [SUB-017]: Circuit breaker pattern implementation
-- [ ] [SUB-018]: API response validation and error handling
-
-##### [FEAT-004]: Rate Caching System
-- **Description**: Redis-based caching with configurable TTL
-- **Status**: Planning
-- **Priority**: High
-- **Quality Criteria**: Cache hit rate >80%, TTL management, cache invalidation
-- **Progress**: 0%
-
-###### [TASK-005]: Cache Service Implementation
-- **Description**: Redis integration with async operations and TTL management
-- **Status**: TODO
-- **Estimated Effort**: 5 hours
-- **Dependencies**: Redis server, cache key design
-- **Quality Gates**: Cache performance tests, TTL validation, failover handling
-
-**Subtasks**:
-- [ ] [SUB-019]: Redis connection pool setup
-- [ ] [SUB-020]: Cache key strategy design
-- [ ] [SUB-021]: TTL configuration and management
-- [ ] [SUB-022]: Cache miss fallback logic
-- [ ] [SUB-023]: Cache invalidation mechanisms
-
-#### [COMP-003]: Calculation Service
-**Purpose**: Apply markup calculations, format results, prepare notification data
-**Status**: Planning
-**Dependencies**: Rate Service, Configuration Service
-**Responsible**: Business logic team
-
-##### [FEAT-005]: Markup Calculation Engine
-- **Description**: Apply configurable percentage markup to base rates
-- **Status**: Planning
-- **Priority**: Critical
-- **Quality Criteria**: Calculation accuracy to 4 decimal places, configurable precision
-- **Progress**: 0%
-
-###### [TASK-006]: Markup Calculation Logic
-- **Description**: Core calculation functions with precision handling
-- **Status**: TODO
-- **Estimated Effort**: 4 hours
-- **Dependencies**: Configuration service for markup rates
-- **Quality Gates**: Calculation accuracy tests, edge case handling, precision validation
-
-**Subtasks**:
-- [ ] [SUB-024]: Base rate calculation functions
-- [ ] [SUB-025]: Markup percentage application
-- [ ] [SUB-026]: Precision and rounding logic
-- [ ] [SUB-027]: Currency-specific formatting rules
-
-#### [COMP-004]: Notification Service
-**Purpose**: Send transaction details to managers, handle manager responses
-**Status**: Planning
-**Dependencies**: Telegram Bot API, Configuration Service
-**Responsible**: Integration team
-
-##### [FEAT-006]: Manager Notification System
-- **Description**: Automated notifications to assigned managers with transaction details
-- **Status**: Planning
-- **Priority**: High
-- **Quality Criteria**: 100% delivery rate, response tracking, notification formatting
-- **Progress**: 0%
-
-###### [TASK-007]: Notification Message Builder
-- **Description**: Format transaction details into structured manager notifications
-- **Status**: TODO
-- **Estimated Effort**: 3 hours
-- **Dependencies**: Message templates, manager configuration
-- **Quality Gates**: Message format validation, template rendering tests
-
-**Subtasks**:
-- [ ] [SUB-028]: Notification message template design
-- [ ] [SUB-029]: Transaction data serialization
-- [ ] [SUB-030]: Manager response callback handling
-- [ ] [SUB-031]: Notification delivery confirmation
-
-#### [COMP-005]: Configuration Service
-**Purpose**: Manage environment configuration, markup rates, manager assignments
-**Status**: Planning
-**Dependencies**: Pydantic, python-dotenv
-**Responsible**: Infrastructure team
-
-##### [FEAT-007]: Dynamic Configuration Management
-- **Description**: Runtime configuration updates for markup rates and manager assignments
-- **Status**: Planning
-- **Priority**: Medium
-- **Quality Criteria**: Configuration validation, hot reload capability, audit logging
-- **Progress**: 0%
-
-###### [TASK-008]: Configuration Models
-- **Description**: Pydantic models for all configuration parameters
-- **Status**: TODO
-- **Estimated Effort**: 3 hours
-- **Dependencies**: Pydantic library, environment variable definitions
-- **Quality Gates**: Configuration validation tests, schema compliance
-
-**Subtasks**:
-- [ ] [SUB-032]: Environment variable schema definition
-- [ ] [SUB-033]: Configuration validation rules
-- [ ] [SUB-034]: Hot reload mechanism implementation
-- [ ] [SUB-035]: Configuration audit logging
-
-## SYSTEM-WIDE TASKS
-
-### [SYS-TASK-001]: Project Structure Setup ✅ COMPLETED
-- **Description**: Create standardized project structure with all necessary directories
-- **Status**: COMPLETED
-- **Priority**: Critical
-- **Estimated Effort**: 2 hours
-- **Implementation**: Complete directory structure created with all required directories and __init__.py files
-- **Tests**: Unit tests created and passing in tests/unit/test_project_structure.py
-- **Files**: main.py entry point created, all package directories initialized
-
-### [SYS-TASK-002]: Development Environment Configuration ✅ COMPLETED
-- **Description**: Setup development tools, linting, formatting, and pre-commit hooks
-- **Status**: COMPLETED
-- **Priority**: High
-- **Estimated Effort**: 4 hours
-- **Implementation**: Complete development environment configured with all tools
-- **Tests**: Unit tests created and passing in tests/unit/test_development_environment.py (11/11 tests pass)
-- **Files**: pyproject.toml, .pre-commit-config.yaml, Makefile, all development tools configured
-
-### [SYS-TASK-003]: Docker Configuration
-- **Description**: Multi-stage Dockerfile with production optimizations
-- **Status**: TODO
-- **Priority**: High
-- **Estimated Effort**: 3 hours
-
-### [SYS-TASK-004]: CI/CD Pipeline Setup
-- **Description**: GitHub Actions workflow for testing, building, and deployment
-- **Status**: TODO
-- **Priority**: Medium
-- **Estimated Effort**: 6 hours
-
-### [SYS-TASK-005]: Monitoring and Logging Setup
-- **Description**: Structured logging, metrics collection, and alerting configuration
-- **Status**: TODO
-- **Priority**: Medium
-- **Estimated Effort**: 8 hours
-
-## IMPLEMENTATION STRATEGY
-
-### Phase 1: Foundation Setup (Week 1)
-1. **Technology Validation** - Verify all technology choices work together
-2. **Project Structure** - Create standardized directory structure
-3. **Development Environment** - Setup tooling and development workflow
-4. **Basic Bot Framework** - Minimal Telegram bot with health check
-
-### Phase 2: Core Services (Week 2-3)
-1. **Configuration Service** - Environment and runtime configuration management
-2. **Rate Service** - Rapira API integration with caching
-3. **Calculation Service** - Markup application and calculation logic
-4. **Basic Command Handlers** - /rate and /calc commands
-
-### Phase 3: User Interface (Week 4)
-1. **Finite State Machine** - User interaction flow management
-2. **Inline Keyboards** - Interactive currency pair selection
-3. **Command Enhancement** - Full command feature implementation
-4. **Error Handling** - Comprehensive error handling and user feedback
-
-### Phase 4: Manager Integration (Week 5)
-1. **Notification Service** - Manager notification system
-2. **Admin Commands** - Administrative command implementation
-3. **Response Handling** - Manager response processing
-4. **Statistics Service** - Usage statistics and reporting
-
-### Phase 5: Production Readiness (Week 6)
-1. **Containerization** - Docker optimization and deployment configuration
-2. **Monitoring** - Logging, metrics, and alerting setup
-3. **Testing** - Comprehensive test suite and integration testing
-4. **Documentation** - API documentation and deployment guides
-
-## CREATIVE PHASES - COMPLETED ✅
-
-### [CREATIVE-001]: User Experience Design ✅ COMPLETE
-**Component**: Bot Handler Layer, Inline Keyboards
-**Type**: UI/UX Design
-**Status**: COMPLETE
-**Decision**: Single-Level Inline Keyboard with Smart Layout
-**Key Benefits**: Mobile-first design, error prevention, optimal UX/complexity balance
-**Implementation Ready**: Keyboard layouts, user flows, message templates designed
-
-### [CREATIVE-002]: Error Handling Strategy ✅ COMPLETE
-**Component**: All Services
-**Type**: Architecture Design
-**Status**: COMPLETE
-**Decision**: Layered Error Handling with Circuit Breakers
-**Key Benefits**: System resilience, automatic recovery, prevents cascade failures
-**Implementation Ready**: Error classification, circuit breaker patterns, recovery strategies
-
-### [CREATIVE-003]: Caching Strategy ✅ COMPLETE
-**Component**: Rate Service, Cache Service
-**Type**: Architecture Design
-**Status**: COMPLETE
-**Decision**: Hash-Based Hierarchical Caching
-**Key Benefits**: Structured data support, memory efficiency, atomic operations
-**Implementation Ready**: Redis structure, cache manager, TTL strategies designed
-
-### [CREATIVE-004]: Notification Template Design ✅ COMPLETE
-**Component**: Notification Service
-**Type**: Template Design
-**Status**: COMPLETE
-**Decision**: Interactive Messages with Action Buttons
-**Key Benefits**: Streamlined workflows, professional appearance, status tracking
-**Implementation Ready**: Templates, keyboards, delivery strategies designed
-
-## DEPENDENCIES AND INTEGRATION POINTS
-
-### External Dependencies
-- **Rapira API**: Exchange rate data source
-- **Telegram Bot API**: User interface platform
-- **Redis**: Caching layer for performance
-
-### Internal Dependencies
-```mermaid
-graph TD
-    CONFIG[Configuration Service] --> RATE[Rate Service]
-    CONFIG --> CALC[Calculation Service]
-    CONFIG --> NOTIFY[Notification Service]
-    RATE --> CALC
-    CALC --> NOTIFY
-    RATE --> CACHE[Cache Service]
-    BOT[Bot Handler] --> CALC
-    BOT --> RATE
-    BOT --> NOTIFY
-```
-
-### Integration Points
-1. **Telegram API Integration**: Bot token authentication, webhook/polling setup
-2. **Rapira API Integration**: API key management, endpoint configuration
-3. **Redis Integration**: Connection pooling, cluster support
-4. **Environment Integration**: Configuration management, secrets handling
-
-## RISKS AND MITIGATIONS
-
-### Technical Risks
-- **Risk 1**: Rapira API rate limiting or downtime
-  **Mitigation**: Implement circuit breaker pattern, fallback mechanisms, and comprehensive caching
-
-- **Risk 2**: Redis cache failure affecting performance
-  **Mitigation**: Implement graceful degradation, fallback to direct API calls, Redis clustering
-
-- **Risk 3**: Telegram API rate limiting with high user volume
-  **Mitigation**: Implement request queuing, rate limiting, and bulk operations where possible
-
-### Business Risks
-- **Risk 4**: Calculation accuracy issues affecting user trust
-  **Mitigation**: Comprehensive unit testing, decimal precision handling, calculation audit logs
-
-- **Risk 5**: Manager notification delivery failures
-  **Mitigation**: Retry mechanisms, delivery confirmation, alternative notification channels
-
-### Operational Risks
-- **Risk 6**: Configuration changes causing service disruption
-  **Mitigation**: Configuration validation, staged rollouts, rollback procedures
-
-- **Risk 7**: Monitoring blind spots leading to undetected issues
-  **Mitigation**: Comprehensive logging, health checks, alerting on key metrics
-
-## QUALITY GATES AND VERIFICATION
-
-### Code Quality Gates
-- [ ] Code coverage >90% for critical components
-- [ ] All linting and formatting checks pass
-- [ ] Type checking with mypy passes without errors
-- [ ] Security scan passes without critical issues
-
-### Performance Gates
-- [ ] Response time <500ms for all commands
-- [ ] Cache hit rate >80% for rate requests
-- [ ] Memory usage <200MB under normal load
-- [ ] CPU usage <50% under normal load
-
-### Integration Gates
-- [ ] All external API integrations tested
-- [ ] End-to-end user scenarios validated
-- [ ] Manager notification flow verified
-- [ ] Administrative commands functional
-
-### Production Readiness Gates
-- [ ] Docker container builds successfully
-- [ ] All environment configurations validated
-- [ ] Monitoring and alerting configured
-- [ ] Deployment procedures documented
-
-## PROGRESS SUMMARY
-- **Overall Progress**: 15% (Technology Validation Complete)
-- **Technology Validation**: 100% ✅ COMPLETED
-- **Foundation Setup**: 50% (Project Structure & Dev Environment Complete)
-- **Core Services**: 0%
-- **User Interface**: 0%
-- **Manager Integration**: 0%
-- **Production Readiness**: 0%
-
-## NEXT STEPS
-
-### Immediate Actions Required
-1. **Technology Validation**: Execute all technology validation checkpoints
-2. **Creative Phase Planning**: Schedule and execute required creative phases
-3. **Team Assignment**: Assign team members to specific components
-4. **Environment Setup**: Prepare development and testing environments
-
-### Mode Transition Recommendation
-**NEXT MODE: IMPLEMENT MODE** ✅ (All creative phases completed)
-
-**Creative Phase Results**:
-- ✅ Optimal user experience design (Single-level inline keyboards)
-- ✅ Robust error handling strategy (Circuit breakers with layered handling)
-- ✅ Efficient caching architecture (Hash-based hierarchical caching)
-- ✅ Clear notification templates (Interactive messages with action buttons)
-
-**Quality Score**: 44/50 (88%) - EXCEEDS THRESHOLD
-
-**Ready for Implementation**: All design decisions made, implementation guidelines provided, architecture validated.
+# CRYPTO BOT - ПЛАН РЕАЛИЗАЦИИ ПРОЕКТА
+
+## ОБЗОР СИСТЕМЫ
+**Задача**: Telegram бот для обмена валют с интеграцией Rapira API
+**Уровень сложности**: 4 (Сложная система)
+**Тип**: Многокомпонентная система с API интеграцией, управлением пользователями и системой уведомлений
+**Статус**: Творческие фазы завершены - Готов к реализации
+**Приоритет**: Высокий
+
+### Бизнес-цели
+- Предоставление курсов валют в реальном времени с настраиваемой наценкой
+- Автоматизация расчетов транзакций и уведомлений менеджеров
+- Поддержка 8 валютных пар в обоих направлениях (16 комбинаций)
+- Административное управление наценками и назначением менеджеров
+
+## ТЕХНОЛОГИЧЕСКИЙ СТЕК
+
+### Основные технологии
+- **Фреймворк**: Python 3.11+ с Aiogram 3.x (Telegram Bot фреймворк)
+- **HTTP Клиент**: httpx (асинхронный HTTP клиент для Rapira API)
+- **Конфигурация**: Pydantic Settings + python-dotenv
+- **Кеширование**: Redis (для кеширования курсов с TTL)
+- **Логирование**: structlog (структурированное логирование)
+- **Тестирование**: pytest + pytest-asyncio
+- **Контейнеризация**: Docker с многоэтапной сборкой
+
+## СИСТЕМНЫЕ ЗАДАЧИ (ВЫПОЛНЯЮТСЯ ПЕРВЫМИ)
+
+### [x] [SYS-TASK-001]: Настройка структуры проекта ✅ ВЫПОЛНЕНО
+- **Описание**: Создание стандартизированной структуры проекта со всеми необходимыми директориями
+- **Статус**: ВЫПОЛНЕНО
+- **Приоритет**: Критический
+- **Время выполнения**: 2 часа
+- **Реализация**: Полная структура директорий создана со всеми необходимыми __init__.py файлами
+- **Тесты**: Unit тесты созданы и проходят в tests/unit/test_project_structure.py
+- **Файлы**: main.py точка входа создана, все пакеты инициализированы
+
+### [x] [SYS-TASK-002]: Настройка среды разработки ✅ ВЫПОЛНЕНО
+- **Описание**: Настройка инструментов разработки, линтинга, форматирования и pre-commit хуков
+- **Статус**: ВЫПОЛНЕНО
+- **Приоритет**: Высокий
+- **Время выполнения**: 4 часа
+- **Реализация**: Полная среда разработки настроена со всеми инструментами
+- **Тесты**: Unit тесты созданы и проходят в tests/unit/test_development_environment.py (11/11 тестов)
+- **Файлы**: pyproject.toml, .pre-commit-config.yaml, Makefile, все инструменты разработки настроены
+
+### [x] [SYS-TASK-003]: Настройка Docker конфигурации ✅ ВЫПОЛНЕНО
+- **Описание**: Многоэтапный Dockerfile с производственными оптимизациями
+- **Статус**: ВЫПОЛНЕНО
+- **Приоритет**: Высокий
+- **Время выполнения**: 3 часа
+- **Реализация**: Полная Docker конфигурация с многоэтапной сборкой, производственными оптимизациями, стеком мониторинга
+- **Тесты**: Unit тесты созданы и проходят в tests/unit/docker/test_docker_configuration.py (21/21 тест)
+- **Файлы**: Dockerfile, docker-compose.yml, .dockerignore, docker/redis.conf, docker/prometheus.yml, конфигурации docker/grafana/, обновленный Makefile с Docker командами
+
+### [ ] [SYS-TASK-004]: Настройка CI/CD пайплайна
+- **Описание**: GitHub Actions workflow для тестирования, сборки и деплоя
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Приоритет**: Средний
+- **Время выполнения**: 6 часов
+- **Что нужно сделать**:
+  - Создать .github/workflows/ci.yml
+  - Настроить автоматическое тестирование на push
+  - Настроить сборку Docker образов
+  - Настроить деплой на production
+  - Добавить проверки качества кода
+
+### [ ] [SYS-TASK-005]: Настройка мониторинга и логирования
+- **Описание**: Структурированное логирование, сбор метрик и настройка алертов
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Приоритет**: Средний
+- **Время выполнения**: 8 часов
+- **Что нужно сделать**:
+  - Настроить structlog для структурированного логирования
+  - Создать метрики для Prometheus
+  - Настроить Grafana дашборды
+  - Добавить алерты для критических ошибок
+  - Настроить ротацию логов
+
+## ОСНОВНЫЕ КОМПОНЕНТЫ СИСТЕМЫ
+
+### [COMP-001]: Слой обработки бота
+**Назначение**: Обработка Telegram взаимодействий, команд и пользовательского интерфейса
+**Статус**: Планирование
+**Зависимости**: Aiogram фреймворк, FSM компонент
+
+#### [ ] [TASK-001]: Обработчик команды /rate
+- **Описание**: Реализация команды /rate с выбором валютной пары
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 4 часа
+- **Зависимости**: Rate Service, валидация валютных пар
+- **Что нужно сделать**:
+  - Создать обработчик команды /rate
+  - Добавить валидацию валютных пар
+  - Реализовать форматирование и отображение курсов
+  - Добавить обработку ошибок и обратную связь с пользователем
+  - Написать unit тесты
+- **Файлы для создания**:
+  - `src/bot/handlers/rate_handler.py`
+  - `tests/unit/bot/handlers/test_rate_handler.py`
+
+#### [ ] [TASK-002]: Обработчик команды /calc
+- **Описание**: Реализация команды /calc с FSM для ввода суммы
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 6 часов
+- **Зависимости**: FSM компонент, Calculation Service
+- **Что нужно сделать**:
+  - Создать FSM состояния для потока расчетов
+  - Добавить валидацию и парсинг ввода суммы
+  - Реализовать форматирование результата расчета
+  - Интегрировать с системой уведомлений менеджеров
+  - Написать unit тесты
+- **Файлы для создания**:
+  - `src/bot/handlers/calc_handler.py`
+  - `src/bot/states/calc_states.py`
+  - `tests/unit/bot/handlers/test_calc_handler.py`
+
+#### [ ] [TASK-003]: Inline клавиатуры для выбора валют
+- **Описание**: Создание интерактивных кнопок для выбора 8 валютных пар
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 3 часа
+- **Зависимости**: Нет
+- **Что нужно сделать**:
+  - Создать дизайн раскладки клавиатуры
+  - Определить структуру callback данных
+  - Реализовать динамическую генерацию клавиатуры
+  - Реализовать обработчики callback'ов
+  - Написать unit тесты
+- **Файлы для создания**:
+  - `src/bot/keyboards/currency_keyboard.py`
+  - `tests/unit/bot/keyboards/test_currency_keyboard.py`
+
+### [COMP-002]: Сервис курсов валют
+**Назначение**: Получение курсов валют от Rapira API, применение наценки, управление кешированием
+**Статус**: Планирование
+**Зависимости**: httpx, Redis cache, Configuration service
+
+#### [ ] [TASK-004]: Реализация API клиента
+- **Описание**: Асинхронный HTTP клиент с логикой повторов и обработкой ошибок
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 8 часов
+- **Зависимости**: Документация Rapira API, библиотека httpx
+- **Что нужно сделать**:
+  - Настроить конфигурацию HTTP клиента
+  - Создать маппинг API endpoints для всех валютных пар
+  - Создать модели данных запросов/ответов
+  - Реализовать логику повторов с экспоненциальной задержкой
+  - Реализовать паттерн Circuit Breaker
+  - Добавить валидацию ответов API и обработку ошибок
+  - Написать unit тесты
+- **Файлы для создания**:
+  - `src/services/rapira_client.py`
+  - `src/models/rapira_models.py`
+  - `tests/unit/services/test_rapira_client.py`
+
+#### [ ] [TASK-005]: Реализация сервиса кеширования
+- **Описание**: Интеграция с Redis с асинхронными операциями и управлением TTL
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 5 часов
+- **Зависимости**: Redis сервер, дизайн ключей кеша
+- **Что нужно сделать**:
+  - Настроить пул соединений Redis
+  - Создать стратегию ключей кеша
+  - Реализовать конфигурацию и управление TTL
+  - Добавить логику fallback при промахе кеша
+  - Реализовать механизмы инвалидации кеша
+  - Написать unit тесты
+- **Файлы для создания**:
+  - `src/services/cache_service.py`
+  - `tests/unit/services/test_cache_service.py`
+
+### [COMP-003]: Сервис расчетов
+**Назначение**: Применение расчетов наценки, форматирование результатов, подготовка данных уведомлений
+**Статус**: Планирование
+**Зависимости**: Rate Service, Configuration Service
+
+#### [ ] [TASK-006]: Логика расчета наценки
+- **Описание**: Основные функции расчета с обработкой точности
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 4 часа
+- **Зависимости**: Configuration service для ставок наценки
+- **Что нужно сделать**:
+  - Создать функции расчета базового курса
+  - Реализовать применение процентной наценки
+  - Добавить логику точности и округления
+  - Создать правила форматирования для разных валют
+  - Написать unit тесты
+- **Файлы для создания**:
+  - `src/services/calculation_service.py`
+  - `tests/unit/services/test_calculation_service.py`
+
+### [COMP-004]: Сервис уведомлений
+**Назначение**: Отправка деталей транзакций менеджерам, обработка ответов менеджеров
+**Статус**: Планирование
+**Зависимости**: Telegram Bot API, Configuration Service
+
+#### [ ] [TASK-007]: Построитель сообщений уведомлений
+- **Описание**: Форматирование деталей транзакций в структурированные уведомления менеджерам
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 3 часа
+- **Зависимости**: Шаблоны сообщений, конфигурация менеджеров
+- **Что нужно сделать**:
+  - Создать дизайн шаблонов уведомлений
+  - Реализовать сериализацию данных транзакций
+  - Добавить обработку callback'ов ответов менеджеров
+  - Реализовать подтверждение доставки уведомлений
+  - Написать unit тесты
+- **Файлы для создания**:
+  - `src/services/notification_service.py`
+  - `src/templates/notification_templates.py`
+  - `tests/unit/services/test_notification_service.py`
+
+### [COMP-005]: Сервис конфигурации
+**Назначение**: Управление конфигурацией окружения, ставками наценки, назначением менеджеров
+**Статус**: Планирование
+**Зависимости**: Pydantic, python-dotenv
+
+#### [ ] [TASK-008]: Модели конфигурации
+- **Описание**: Pydantic модели для всех параметров конфигурации
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 3 часа
+- **Зависимости**: Библиотека Pydantic, определения переменных окружения
+- **Что нужно сделать**:
+  - Создать схему переменных окружения
+  - Добавить правила валидации конфигурации
+  - Реализовать механизм горячей перезагрузки
+  - Добавить логирование аудита конфигурации
+  - Написать unit тесты
+- **Файлы для создания**:
+  - `src/config/models.py`
+  - `src/config/validators.py`
+  - `tests/unit/config/test_models.py`
+
+## АДМИНИСТРАТИВНЫЕ КОМАНДЫ
+
+#### [ ] [TASK-009]: Команда /set_markup
+- **Описание**: Установка процента наценки для валютных пар
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 3 часа
+- **Что нужно сделать**:
+  - Создать обработчик команды с проверкой прав администратора
+  - Добавить валидацию процента наценки (0-100%)
+  - Реализовать сохранение в конфигурацию
+  - Добавить подтверждение изменений
+  - Написать unit тесты
+- **Файлы для создания**:
+  - `src/bot/handlers/admin_handlers.py`
+  - `tests/unit/bot/handlers/test_admin_handlers.py`
+
+#### [ ] [TASK-010]: Команда /set_manager
+- **Описание**: Назначение менеджера для определенной валютной пары
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 3 часа
+- **Что нужно сделать**:
+  - Создать обработчик команды с проверкой прав
+  - Добавить валидацию Telegram ID менеджера
+  - Реализовать привязку менеджера к валютной паре
+  - Добавить уведомление менеджера о назначении
+  - Написать unit тесты
+
+#### [ ] [TASK-011]: Команда /stats
+- **Описание**: Показ статистики использования бота
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 4 часа
+- **Что нужно сделать**:
+  - Создать систему сбора статистики
+  - Реализовать метрики: количество пользователей, запросов, ошибок
+  - Добавить форматирование статистики для администраторов
+  - Создать экспорт статистики в файл
+  - Написать unit тесты
+- **Файлы для создания**:
+  - `src/services/stats_service.py`
+  - `tests/unit/services/test_stats_service.py`
+
+## ИНТЕГРАЦИОННЫЕ ЗАДАЧИ
+
+#### [ ] [TASK-012]: Интеграция всех компонентов
+- **Описание**: Связывание всех сервисов в единую систему
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 6 часов
+- **Что нужно сделать**:
+  - Создать главный модуль приложения
+  - Настроить dependency injection
+  - Реализовать graceful shutdown
+  - Добавить health check endpoints
+  - Создать интеграционные тесты
+- **Файлы для создания**:
+  - `src/main.py` (обновить)
+  - `src/app.py`
+  - `tests/integration/test_full_flow.py`
+
+#### [ ] [TASK-013]: Обработка ошибок и логирование
+- **Описание**: Централизованная обработка ошибок и структурированное логирование
+- **Статус**: НЕ ВЫПОЛНЕНО
+- **Время выполнения**: 4 часа
+- **Что нужно сделать**:
+  - Создать централизованный обработчик ошибок
+  - Настроить структурированное логирование
+  - Добавить корреляционные ID для трейсинга
+  - Реализовать алерты для критических ошибок
+  - Написать unit тесты
+- **Файлы для создания**:
+  - `src/utils/error_handler.py`
+  - `src/utils/logger.py`
+  - `tests/unit/utils/test_error_handler.py`
+
+## ПОРЯДОК ВЫПОЛНЕНИЯ ЗАДАЧ
+
+### Фаза 1: Основная инфраструктура (Неделя 1)
+1. [x] SYS-TASK-001: Структура проекта ✅
+2. [x] SYS-TASK-002: Среда разработки ✅
+3. [x] SYS-TASK-003: Docker конфигурация ✅
+4. [ ] TASK-008: Модели конфигурации
+5. [ ] SYS-TASK-004: CI/CD пайплайн
+
+### Фаза 2: Основные сервисы (Неделя 2-3)
+6. [ ] TASK-004: API клиент
+7. [ ] TASK-005: Сервис кеширования
+8. [ ] TASK-006: Логика расчетов
+9. [ ] TASK-007: Сервис уведомлений
+
+### Фаза 3: Пользовательский интерфейс (Неделя 4)
+10. [ ] TASK-003: Inline клавиатуры
+11. [ ] TASK-001: Обработчик /rate
+12. [ ] TASK-002: Обработчик /calc
+
+### Фаза 4: Административные функции (Неделя 5)
+13. [ ] TASK-009: Команда /set_markup
+14. [ ] TASK-010: Команда /set_manager
+15. [ ] TASK-011: Команда /stats
+
+### Фаза 5: Интеграция и финализация (Неделя 6)
+16. [ ] TASK-012: Интеграция компонентов
+17. [ ] TASK-013: Обработка ошибок
+18. [ ] SYS-TASK-005: Мониторинг и логирование
+
+## ПРОГРЕСС ВЫПОЛНЕНИЯ
+
+**Общий прогресс**: 16% (3 из 18 задач выполнено)
+
+### Выполненные задачи ✅
+- [x] SYS-TASK-001: Структура проекта
+- [x] SYS-TASK-002: Среда разработки
+- [x] SYS-TASK-003: Docker конфигурация
+
+### Следующая задача для выполнения
+**TASK-008: Модели конфигурации** - это следующая приоритетная задача
+
+### Статистика тестов
+- ✅ Тесты структуры проекта: 5/5 проходят
+- ✅ Тесты среды разработки: 11/11 проходят
+- ✅ Тесты Docker конфигурации: 21/21 проходят
+- **Общие unit тесты**: 37/37 проходят
 
 ---
-*Last Updated: [Current timestamp]*
-*Plan Status: Complete - Awaiting Technology Validation*
+*Последнее обновление: [Текущая дата]*
+*Статус плана: Готов к реализации - Фаза 1 завершена*
