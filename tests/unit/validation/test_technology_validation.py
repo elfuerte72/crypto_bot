@@ -218,13 +218,13 @@ class TestRedisConnection:
             import redis.asyncio as redis
 
             # Mock Redis operations with AsyncMock
-            with patch.object(
-                redis.Redis, "set", new_callable=AsyncMock
-            ) as mock_set, patch.object(
-                redis.Redis, "get", new_callable=AsyncMock
-            ) as mock_get, patch.object(
-                redis.Redis, "expire", new_callable=AsyncMock
-            ) as mock_expire:
+            with (
+                patch.object(redis.Redis, "set", new_callable=AsyncMock) as mock_set,
+                patch.object(redis.Redis, "get", new_callable=AsyncMock) as mock_get,
+                patch.object(
+                    redis.Redis, "expire", new_callable=AsyncMock
+                ) as mock_expire,
+            ):
                 # Configure mocks
                 mock_set.return_value = True
                 mock_get.return_value = '{"USD_RUB": 95.50}'
@@ -513,11 +513,14 @@ class TestIntegrationCapabilities:
                 mock_http_get.return_value = mock_response
 
                 # Mock Redis client with AsyncMock
-                with patch.object(
-                    redis.Redis, "get", new_callable=AsyncMock
-                ) as mock_redis_get, patch.object(
-                    redis.Redis, "set", new_callable=AsyncMock
-                ) as mock_redis_set:
+                with (
+                    patch.object(
+                        redis.Redis, "get", new_callable=AsyncMock
+                    ) as mock_redis_get,
+                    patch.object(
+                        redis.Redis, "set", new_callable=AsyncMock
+                    ) as mock_redis_set,
+                ):
                     mock_redis_get.return_value = None  # Cache miss
                     mock_redis_set.return_value = True
 

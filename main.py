@@ -6,11 +6,12 @@ Telegram bot for real-time currency exchange rates with Rapira API integration.
 This is a placeholder main entry point until the core services are implemented.
 """
 
+import asyncio
 import sys
 from pathlib import Path
 
 
-def main() -> None:
+async def main() -> None:
     """Main application entry point."""
     print("🚀 Crypto Bot - Technology Validation Complete!")
     print("📋 Status: Foundation setup in progress...")
@@ -26,4 +27,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

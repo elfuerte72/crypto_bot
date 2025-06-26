@@ -47,7 +47,7 @@ class ExchangeRate(BaseModel):
         markup_multiplier = 1 + (markup_percentage / 100)
         final_rate = self.rate * markup_multiplier
 
-        updated_rate: "ExchangeRate" = self.model_copy(
+        updated_rate: ExchangeRate = self.model_copy(
             update={"markup_rate": markup_percentage, "final_rate": final_rate}
         )
         return updated_rate
