@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  crypto-bot:
+    build: .
+    container_name: crypto-bot
+    restart: unless-stopped
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - crypto-bot-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: crypto-bot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - crypto-bot-network
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: crypto-bot-redis-ui
+    restart: unless-stopped
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - crypto-bot-network
+    profiles:
+      - debug
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  crypto-bot-network:
+    driver: bridge
