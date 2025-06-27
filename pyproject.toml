@@ -43,6 +43,13 @@ Repository = "https://github.com/crypto-bot-team/crypto-bot.git"
 [project.scripts]
 crypto-bot = "src.main:main"
 
+# Setuptools configuration
+[tool.setuptools]
+packages = {find = {where = ["src"]}}
+
+[tool.setuptools.package-dir]
+"" = "src"
+
 # Minimal pytest configuration
 [tool.pytest.ini_options]
 minversion = "7.0"
