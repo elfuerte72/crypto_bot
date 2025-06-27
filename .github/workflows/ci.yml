@@ -58,7 +58,7 @@ jobs:
 
     - name: Run tests only
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         pytest tests/ -v --tb=short
 
   # Optional: Simple Docker build for main branch only
