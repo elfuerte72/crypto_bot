@@ -44,7 +44,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .
         pip install pytest pytest-asyncio pytest-mock
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
 
     - name: Create test .env file
       run: |
@@ -58,9 +57,9 @@ jobs:
         EOF
 
     - name: Run tests only
-      run: pytest tests/ -v --tb=short
-      env:
-        PYTHONPATH: ${{ github.workspace }}/src
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+        pytest tests/ -v --tb=short
 
   # Optional: Simple Docker build for main branch only
   build:
