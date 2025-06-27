@@ -625,20 +625,20 @@ class CalculationService(BaseService):
             Formatted summary string
         """
         lines = [
-            f"💱 **Exchange Calculation**",
-            f"",
-            f"📊 **Rate Information:**",
+            "💱 **Exchange Calculation**",
+            "",
+            "📊 **Rate Information:**",
             f"• Pair: {result.pair_string}",
             f"• Market Rate: {result.formatted_rate}",
             f"• Markup: {result.markup_rate}% (+{self._format_amount(result.markup_amount, result.quote_currency)})",
             f"• Spread: {result.spread_percentage:.2f}%",
-            f"",
-            f"💰 **Calculation:**",
+            "",
+            "💰 **Calculation:**",
             f"• You send: {result.formatted_input}",
             f"• You receive: {result.formatted_output}",
             f"• Direction: {result.calculation_direction.title()}",
-            f"",
-            f"📈 **Fees & Profit:**",
+            "",
+            "📈 **Fees & Profit:**",
             f"• Our profit: {self._format_amount(result.markup_amount, result.quote_currency)}",
             f"• Total fee: {result.total_fee_percentage:.2f}%",
         ]

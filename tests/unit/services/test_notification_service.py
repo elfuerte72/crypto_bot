@@ -7,8 +7,7 @@ covering all notification scenarios, template handling, and error conditions.
 import pytest
 from datetime import datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, Any
+from unittest.mock import AsyncMock, MagicMock
 
 from aiogram import Bot
 from aiogram.exceptions import (

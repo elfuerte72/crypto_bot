@@ -5,9 +5,7 @@ covering all functionality including connection management, CRUD operations,
 TTL handling, batch operations, pattern invalidation, and error scenarios.
 """
 
-import asyncio
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

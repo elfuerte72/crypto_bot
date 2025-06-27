@@ -55,10 +55,8 @@ jobs:
         ENVIRONMENT=test
         EOF
 
-    - name: Run tests
-      run: pytest tests/ -v
-      env:
-        PYTHONPATH: ${{ github.workspace }}/src
+    - name: Run tests only
+      run: pytest tests/ -v --tb=short
 
   # Optional: Simple Docker build for main branch only
   build:

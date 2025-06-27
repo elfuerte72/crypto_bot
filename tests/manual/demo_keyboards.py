@@ -6,9 +6,6 @@
 
 from src.bot.keyboards.currency_keyboard import (
     CurrencyKeyboard,
-    get_rate_keyboard,
-    get_calc_keyboard,
-    get_admin_keyboard,
     parse_callback,
 )
 
@@ -84,7 +81,7 @@ def main():
     demo_callback_parsing()
 
     # Показываем информацию о валютных парах
-    print(f"\n=== ИНФОРМАЦИЯ О ВАЛЮТНЫХ ПАРАХ ===")
+    print("\n=== ИНФОРМАЦИЯ О ВАЛЮТНЫХ ПАРАХ ===")
     print(f"Поддерживаемые пары: {len(keyboard._currency_pairs)}")
     for i, (base, quote) in enumerate(keyboard._currency_pairs, 1):
         emoji_base = keyboard.CURRENCY_EMOJIS.get(base, "")

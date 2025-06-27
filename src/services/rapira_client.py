@@ -16,7 +16,6 @@ from pydantic import ValidationError
 
 from ..models.rapira_models import (
     CircuitBreakerState,
-    RapiraApiError,
     RapiraApiResponse,
     RapiraClientConfig,
     RapiraRateData,

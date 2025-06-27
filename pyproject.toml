@@ -51,9 +51,12 @@ addopts = [
     "-v",
 ]
 testpaths = ["tests"]
+pythonpath = ["src"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+# Исключаем dev-tools тесты из обычного запуска
+norecursedirs = ["tests/dev-tools-tests"]
 markers = [
     "slow: marks tests as slow",
     "integration: marks tests as integration tests",

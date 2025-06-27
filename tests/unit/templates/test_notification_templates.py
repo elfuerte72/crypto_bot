@@ -4,8 +4,6 @@ This module contains tests for the NotificationTemplates utility class
 and template validation functionality.
 """
 
-import pytest
-from typing import Dict
 
 from src.services.notification_service import NotificationTemplate
 from src.templates.notification_templates import NotificationTemplates

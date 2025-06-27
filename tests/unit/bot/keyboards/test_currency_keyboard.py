@@ -1,6 +1,5 @@
 """Unit tests for currency keyboard module."""
 
-import pytest
 from unittest.mock import Mock
 
 from src.bot.keyboards.currency_keyboard import (

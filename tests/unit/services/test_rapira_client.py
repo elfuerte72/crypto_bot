@@ -4,8 +4,6 @@ This module contains comprehensive unit tests for the Rapira API client,
 including testing of retry logic, circuit breaker, error handling, and metrics.
 """
 
-import asyncio
-import json
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
