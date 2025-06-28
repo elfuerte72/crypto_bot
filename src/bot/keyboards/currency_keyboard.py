@@ -11,7 +11,7 @@ from typing import List, Optional
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from ...config.models import Settings
+from config.models import Settings
 
 
 class CurrencyKeyboard:
@@ -32,8 +32,16 @@ class CurrencyKeyboard:
 
     # Emoji mapping for better visual representation
     CURRENCY_EMOJIS = {
+        "USD": "🇺🇸",
+        "EUR": "🇪🇺",
         "RUB": "🇷🇺",
+        "BTC": "₿",
+        "ETH": "Ξ",
         "USDT": "💰",
+        "LTC": "💵",
+        "SOL": "☀️",
+        "TON": "🔷",
+        "DOGE": "🐶",
         "ZAR": "🇿🇦",
         "THB": "🇹🇭",
         "AED": "🇦🇪",
@@ -98,22 +106,15 @@ class CurrencyKeyboard:
         """
         builder = InlineKeyboardBuilder()
 
-        # Add all currency pairs in both directions (16 total)
+        # Add currency pairs as configured in settings
         for base, quote in self._currency_pairs:
-            # Forward direction (e.g., RUB → ZAR)
+            # Only forward direction to avoid too many buttons
             builder.button(
                 text=self._format_currency_button_text(base, quote),
                 callback_data=self._create_callback_data(base, quote),
             )
 
-            # Reverse direction (e.g., ZAR → RUB)
-            builder.button(
-                text=self._format_currency_button_text(quote, base),
-                callback_data=self._create_callback_data(quote, base),
-            )
-
         # Adjust layout: 2 columns for mobile optimization
-        # This creates a clean 2-column layout with 8 rows
         builder.adjust(2)
 
         return builder.as_markup()

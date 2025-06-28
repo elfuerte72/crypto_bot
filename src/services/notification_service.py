@@ -1,15 +1,17 @@
-"""Notification service for sending transaction details to managers.
+"""Notification service for Telegram messaging.
 
-This module provides comprehensive notification functionality for sending
-transaction details to assigned managers, handling responses, and managing
-notification templates.
+This module provides comprehensive notification functionality including message
+formatting, rate alerts, calculation results, and admin notifications with
+template-based formatting and error handling.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from aiogram import Bot
 from aiogram.exceptions import (
@@ -17,11 +19,11 @@ from aiogram.exceptions import (
     TelegramBadRequest,
     TelegramForbiddenError,
 )
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from pydantic import BaseModel, Field, field_validator
 
-from ..config.models import ManagerConfig, Settings
-from ..services.calculation_service import CalculationResult
+from config.models import ManagerConfig, Settings
+from services.calculation_service import CalculationResult
 from .base import BaseService
 
 logger = logging.getLogger(__name__)
@@ -443,7 +445,7 @@ class NotificationService(BaseService):
         """
         try:
             # Create dummy calculation result for error notification
-            from ..services.calculation_service import CalculationResult
+            from services.calculation_service import CalculationResult
             from decimal import Decimal
 
             dummy_result = CalculationResult(

@@ -37,15 +37,16 @@ class Settings(BaseSettings):
 
     def _initialize_default_currency_pairs(self) -> None:
         """Initialize default currency pairs from legacy configuration."""
+        # Updated to use actually available pairs from Rapira API
         default_pairs = [
-            ("USD", "RUB"),
-            ("EUR", "RUB"),
-            ("USD", "EUR"),
-            ("BTC", "USD"),
-            ("ETH", "USD"),
-            ("USDT", "RUB"),
-            ("BTC", "RUB"),
-            ("ETH", "RUB"),
+            ("USDT", "RUB"),  # Available ✅
+            ("BTC", "USDT"),  # Available ✅
+            ("ETH", "USDT"),  # Available ✅
+            ("ETH", "BTC"),  # Available ✅
+            ("LTC", "USDT"),  # Available ✅
+            ("SOL", "USDT"),  # Available ✅
+            ("TON", "USDT"),  # Available ✅
+            ("DOGE", "USDT"),  # Available ✅
         ]
 
         for base, quote in default_pairs:

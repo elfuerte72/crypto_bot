@@ -1,14 +1,14 @@
-"""Notification message templates for the crypto bot.
+"""Notification templates for the crypto bot.
 
-This module contains predefined templates for various types of notifications
-sent to managers, including transaction notifications, rate requests, and system alerts.
+This module provides message templates for various notification types including
+rate alerts, calculation results, admin notifications, and error messages.
 """
 
 from __future__ import annotations
 
-from typing import Dict
+from typing import Any, Dict
 
-from ..services.notification_service import NotificationTemplate
+from services.notification_service import NotificationTemplate
 
 
 class NotificationTemplates:

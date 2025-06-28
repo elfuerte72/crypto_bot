@@ -1,7 +1,7 @@
-"""Calculation service for currency exchange calculations.
+"""Calculation service for currency exchange operations.
 
-This module provides comprehensive calculation logic for applying markup rates,
-handling precision, formatting results, and preparing notification data.
+This module provides calculation functionality for currency exchanges,
+including markup application, fee calculations, and result formatting.
 """
 
 from __future__ import annotations
@@ -9,11 +9,13 @@ from __future__ import annotations
 import logging
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Dict, Optional, Tuple
+from dataclasses import dataclass
+from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-from ..config.models import CurrencyPair, Settings
-from ..models.rapira_models import RapiraRateData
+from config.models import CurrencyPair, Settings
+from models.rapira_models import RapiraRateData
 from .base import BaseService
 
 logger = logging.getLogger(__name__)

@@ -3,28 +3,212 @@
 Crypto Bot - Main Entry Point
 
 Telegram bot for real-time currency exchange rates with Rapira API integration.
-This is a placeholder main entry point until the core services are implemented.
+Production-ready implementation with comprehensive error handling and monitoring.
 """
 
 import asyncio
+import logging
+import signal
 import sys
 from pathlib import Path
+from typing import Any
+
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from aiogram.types import BotCommand
+
+# Add src directory to Python path
+src_path = Path(__file__).parent / "src"
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
+
+# Import after path setup
+from config.settings import get_settings  # noqa: E402
+from bot.handlers import basic_router, rate_router  # noqa: E402
+
+
+# Global variables for graceful shutdown
+bot: Bot | None = None
+dp: Dispatcher | None = None
+
+
+async def setup_bot_commands(bot: Bot) -> None:
+    """Setup bot commands for better UX."""
+    commands = [
+        BotCommand(command="start", description="🚀 Запустить бота"),
+        BotCommand(command="help", description="❓ Помощь по командам"),
+        BotCommand(command="rate", description="💱 Посмотреть курс валют"),
+        BotCommand(command="calc", description="🧮 Рассчитать сумму обмена"),
+    ]
+
+    await bot.set_my_commands(commands)
+    logging.info("✅ Bot commands configured successfully")
+
+
+async def setup_logging() -> None:
+    """Configure application logging."""
+    settings = get_settings()
+
+    # Determine log format based on settings
+    if settings.logging.format.lower() == "json":
+        log_format = '{"timestamp": "%(asctime)s", "level": "%(levelname)s", "module": "%(name)s", "message": "%(message)s"}'
+    else:
+        log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+    # Configure root logger
+    logging.basicConfig(
+        level=getattr(logging, settings.logging.level.upper()),
+        format=log_format,
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+        ],
+    )
+
+    # Configure aiogram logging
+    aiogram_logger = logging.getLogger("aiogram")
+    if settings.application.debug:
+        aiogram_logger.setLevel(logging.INFO)
+    else:
+        aiogram_logger.setLevel(logging.WARNING)
+
+    logging.info("✅ Logging configured successfully")
+
+
+async def create_bot() -> Bot:
+    """Create and configure bot instance."""
+    settings = get_settings()
+
+    # Create bot with default properties
+    bot = Bot(
+        token=settings.telegram.token,
+        default=DefaultBotProperties(
+            parse_mode=ParseMode.HTML,
+        ),
+    )
+
+    # Validate bot token
+    try:
+        bot_info = await bot.get_me()
+        username = bot_info.username
+        first_name = bot_info.first_name
+        logging.info(f"✅ Bot authenticated: @{username} ({first_name})")
+    except Exception as e:
+        logging.error(f"❌ Bot authentication failed: {e}")
+        raise
+
+    return bot
+
+
+async def create_dispatcher() -> Dispatcher:
+    """Create and configure dispatcher with all routers."""
+    settings = get_settings()
+
+    # Create dispatcher
+    dp = Dispatcher()
+
+    # Include routers
+    dp.include_router(basic_router)
+    logging.info("✅ Basic handlers router registered")
+    dp.include_router(rate_router)
+    logging.info("✅ Rate handler router registered")
+
+    # Add global data to dispatcher
+    dp["settings"] = settings
+
+    logging.info("✅ Dispatcher configured successfully")
+    return dp
+
+
+async def on_startup() -> None:
+    """Startup hook for initialization."""
+    logging.info("🚀 Starting Crypto Bot...")
+
+    # Setup bot commands
+    if bot:
+        await setup_bot_commands(bot)
+
+    # Log configuration
+    settings = get_settings()
+    logging.info(f"📋 Environment: {settings.application.environment}")
+    logging.info(f"🔧 Debug mode: {settings.application.debug}")
+    pairs_count = len(settings.supported_pairs_list)
+    logging.info(f"💱 Supported pairs: {pairs_count}")
+    admin_count = len(settings.telegram.admin_user_ids)
+    logging.info(f"👥 Admin users: {admin_count}")
+
+    logging.info("✅ Bot startup completed successfully!")
+
+
+async def on_shutdown() -> None:
+    """Shutdown hook for cleanup."""
+    logging.info("🛑 Shutting down Crypto Bot...")
+
+    # Close bot session
+    if bot:
+        await bot.session.close()
+        logging.info("✅ Bot session closed")
+
+    logging.info("✅ Shutdown completed successfully!")
+
+
+def setup_signal_handlers() -> None:
+    """Setup signal handlers for graceful shutdown."""
+
+    def signal_handler(signum: int, frame: Any) -> None:
+        msg = f"📡 Received signal {signum}, initiating graceful shutdown..."
+        logging.info(msg)
+        if dp:
+            dp.stop_polling()
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
 
 async def main() -> None:
     """Main application entry point."""
-    print("🚀 Crypto Bot - Technology Validation Complete!")
-    print("📋 Status: Foundation setup in progress...")
-    print("🔧 Next: Implementing configuration models and core services")
-    print("💡 Run tests: python -m pytest tests/unit/validation/")
+    global bot, dp
 
-    # Add src directory to Python path for future imports
-    src_path = Path(__file__).parent / "src"
-    if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path))
+    try:
+        # Setup logging first
+        await setup_logging()
 
-    print(f"✅ Python path configured: {src_path}")
+        # Setup signal handlers
+        setup_signal_handlers()
+
+        # Create bot and dispatcher
+        bot = await create_bot()
+        dp = await create_dispatcher()
+
+        # Run startup hook
+        await on_startup()
+
+        # Start polling
+        logging.info("🔄 Starting polling...")
+        await dp.start_polling(
+            bot,
+            allowed_updates=dp.resolve_used_update_types(),
+            drop_pending_updates=True,
+        )
+
+    except KeyboardInterrupt:
+        logging.info("👋 Bot stopped by user")
+    except Exception as e:
+        logging.error(f"💥 Critical error: {e}", exc_info=True)
+        return 1
+    finally:
+        # Run shutdown hook
+        await on_shutdown()
+
+    return 0
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Ensure proper event loop for Windows
+    if sys.platform.startswith("win"):
+        policy = asyncio.WindowsProactorEventLoopPolicy()
+        asyncio.set_event_loop_policy(policy)
+
+    # Run the bot
+    exit_code = asyncio.run(main())
+    sys.exit(exit_code)

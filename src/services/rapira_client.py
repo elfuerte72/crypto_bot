@@ -14,7 +14,7 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 
-from ..models.rapira_models import (
+from models.rapira_models import (
     CircuitBreakerState,
     RapiraApiResponse,
     RapiraClientConfig,
