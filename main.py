@@ -25,7 +25,12 @@ if str(src_path) not in sys.path:
 
 # Import after path setup
 from config.settings import get_settings  # noqa: E402
-from bot.handlers import basic_router, rate_router, calc_router  # noqa: E402
+from bot.handlers import (
+    basic_router,
+    rate_router,
+    calc_router,
+    admin_router,
+)  # noqa: E402
 
 
 # Global variables for graceful shutdown
@@ -40,6 +45,7 @@ async def setup_bot_commands(bot: Bot) -> None:
         BotCommand(command="help", description="❓ Помощь по командам"),
         BotCommand(command="rate", description="💱 Посмотреть курс валют"),
         BotCommand(command="calc", description="🧮 Рассчитать сумму обмена"),
+        BotCommand(command="set_markup", description="⚙️ Настроить наценку (админ)"),
     ]
 
     await bot.set_my_commands(commands)
@@ -114,6 +120,8 @@ async def create_dispatcher() -> Dispatcher:
     logging.info("✅ Rate handler router registered")
     dp.include_router(calc_router)
     logging.info("✅ Calc handler router registered")
+    dp.include_router(admin_router)
+    logging.info("✅ Admin handler router registered")
 
     # Add global data to dispatcher
     dp["settings"] = settings
