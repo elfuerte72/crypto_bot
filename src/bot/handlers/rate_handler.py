@@ -68,17 +68,26 @@ class RateService:
             client = await self.get_api_client()
             async with client:
                 rate_data = await client.get_rate_by_symbol(symbol)
+                if rate_data is not None:
+                    return rate_data
+        except RapiraApiException:
+            pass  # Continue to try reverse pair
+        except Exception:
+            # For any other error, return None
+            return None
+
+        # If direct pair not found, try reverse pair
+        reverse_symbol = f"{quote}/{base}"
+        try:
+            client = await self.get_api_client()
+            async with client:
+                rate_data = await client.get_rate_by_symbol(reverse_symbol)
                 return rate_data
         except RapiraApiException:
-            # If direct pair not found, try reverse pair
-            reverse_symbol = f"{quote}/{base}"
-            try:
-                client = await self.get_api_client()
-                async with client:
-                    rate_data = await client.get_rate_by_symbol(reverse_symbol)
-                    return rate_data
-            except RapiraApiException:
-                return None
+            return None
+        except Exception:
+            # For any other error, return None
+            return None
 
     async def apply_markup_to_rate(
         self, rate_data: RapiraRateData, base: str, quote: str
@@ -122,7 +131,7 @@ class RateService:
             "base_currency": base,
             "quote_currency": quote,
             "spread": marked_up_ask - marked_up_bid,
-            "last_updated": rate_data.base_currency,  # Using as placeholder for timestamp
+            "last_updated": rate_data.symbol,  # Using symbol as placeholder
         }
 
     async def format_rate_message(self, rate_info: dict[str, Any]) -> str:

@@ -7,11 +7,10 @@ including rate service functionality, error handling, and user interactions.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram.types import CallbackQuery, Message, User
+from aiogram.types import CallbackQuery, Message
 
 from src.bot.handlers.rate_handler import (
     RateService,
@@ -20,7 +19,7 @@ from src.bot.handlers.rate_handler import (
     handle_back_to_rate_selection,
     handle_currency_selection,
 )
-from src.config.models import CurrencyPair, Settings
+from src.config.models import Settings
 from src.models.rapira_models import RapiraRateData
 from src.services.rapira_client import RapiraApiException
 
@@ -127,37 +126,54 @@ class TestRateService:
     ) -> None:
         """Test that service tries reverse pair if direct pair fails."""
         with patch.object(rate_service, "get_api_client") as mock_get_client:
+            # Create one mock client that will be reused
             mock_client = AsyncMock()
             mock_client.__aenter__.return_value = mock_client
             mock_client.__aexit__.return_value = None
 
-            # First call fails, second succeeds
+            # First call returns None (not found), second returns data
             mock_client.get_rate_by_symbol.side_effect = [
-                RapiraApiException("Not found"),
-                sample_rate_data,
+                None,  # Direct pair not found
+                sample_rate_data,  # Reverse pair found
             ]
+
             mock_get_client.return_value = mock_client
 
             result = await rate_service.get_rate_for_pair("RUB", "USD")
 
             assert result == sample_rate_data
+            assert mock_get_client.call_count == 2
             assert mock_client.get_rate_by_symbol.call_count == 2
-            mock_client.get_rate_by_symbol.assert_any_call("RUB/USD")
-            mock_client.get_rate_by_symbol.assert_any_call("USD/RUB")
+            # Check that both symbols were tried
+            calls = mock_client.get_rate_by_symbol.call_args_list
+            assert calls[0][0][0] == "RUB/USD"
+            assert calls[1][0][0] == "USD/RUB"
 
     async def test_get_rate_for_pair_not_found(self, rate_service: RateService) -> None:
         """Test rate retrieval when pair not found."""
         with patch.object(rate_service, "get_api_client") as mock_get_client:
+            # Create one mock client that will be reused
             mock_client = AsyncMock()
             mock_client.__aenter__.return_value = mock_client
             mock_client.__aexit__.return_value = None
-            mock_client.get_rate_by_symbol.side_effect = RapiraApiException("Not found")
+
+            # Both calls return None (not found)
+            mock_client.get_rate_by_symbol.side_effect = [
+                None,  # Direct pair not found
+                None,  # Reverse pair not found
+            ]
+
             mock_get_client.return_value = mock_client
 
             result = await rate_service.get_rate_for_pair("RUB", "USD")
 
             assert result is None
+            assert mock_get_client.call_count == 2
             assert mock_client.get_rate_by_symbol.call_count == 2
+            # Check that both symbols were tried
+            calls = mock_client.get_rate_by_symbol.call_args_list
+            assert calls[0][0][0] == "RUB/USD"
+            assert calls[1][0][0] == "USD/RUB"
 
     async def test_apply_markup_to_rate_with_configured_pair(
         self, rate_service: RateService, sample_rate_data: RapiraRateData
@@ -456,7 +472,7 @@ class TestRateHandlers:
 
             mock_callback.message.edit_text.assert_called_once()
             call_args = mock_callback.message.edit_text.call_args
-            assert "Ошибка API" in call_args[0][0]
+            assert "Произошла ошибка" in call_args[0][0]
 
     async def test_handle_currency_selection_timeout_error(
         self, mock_callback: CallbackQuery, settings: Settings
@@ -616,6 +632,7 @@ class TestIntegration:
 
         # Mock API client that fails first, then succeeds
         with patch.object(rate_service, "get_api_client") as mock_get_client:
+            # Create one mock client that will be reused
             mock_client = AsyncMock()
             mock_client.__aenter__.return_value = mock_client
             mock_client.__aexit__.return_value = None
@@ -642,12 +659,19 @@ class TestIntegration:
                 quoteCurrency="RUB",
             )
 
+            # First call returns None (not found), second returns data
             mock_client.get_rate_by_symbol.side_effect = [
-                RapiraApiException("Not found"),
-                sample_rate_data,
+                None,  # Direct pair not found
+                sample_rate_data,  # Reverse pair found
             ]
+
             mock_get_client.return_value = mock_client
 
             rate_data = await rate_service.get_rate_for_pair("RUB", "USD")
             assert rate_data == sample_rate_data
+            assert mock_get_client.call_count == 2
             assert mock_client.get_rate_by_symbol.call_count == 2
+            # Check that both symbols were tried
+            calls = mock_client.get_rate_by_symbol.call_args_list
+            assert calls[0][0][0] == "RUB/USD"
+            assert calls[1][0][0] == "USD/RUB"

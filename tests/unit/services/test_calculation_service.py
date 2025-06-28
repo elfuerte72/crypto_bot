@@ -4,9 +4,7 @@ import pytest
 from decimal import Decimal
 from unittest.mock import Mock
 
-from src.config.models import CurrencyPair, Settings
-from src.models.rapira_models import RapiraRateData
-from src.services.calculation_service import (
+from services.calculation_service import (
     CalculationService,
     CalculationInput,
     CalculationResult,
@@ -15,6 +13,8 @@ from src.services.calculation_service import (
     InvalidAmountError,
     RateDataError,
 )
+from models.rapira_models import RapiraRateData
+from config.models import Settings, CurrencyPair
 
 
 class TestCalculationInput:
@@ -22,10 +22,26 @@ class TestCalculationInput:
 
     def test_valid_input_creation(self):
         """Test creating valid calculation input."""
-        rate_data = Mock(spec=RapiraRateData)
-        rate_data.ask_price = 75.5
-        rate_data.bid_price = 75.0
-        rate_data.spread_percentage = 0.66
+        rate_data = RapiraRateData(
+            symbol="USD/RUB",
+            open=75.0,
+            high=76.0,
+            low=74.0,
+            close=75.5,
+            chg=0.01,
+            change=0.5,
+            fee=0.002,
+            last_day_close=75.0,
+            usd_rate=75.5,
+            base_usd_rate=1.0,
+            ask_price=75.7,
+            bid_price=75.3,
+            base_coin_scale=2,
+            coin_scale=2,
+            quote_currency_name="Russian Ruble",
+            base_currency="USD",
+            quote_currency="RUB",
+        )
 
         input_data = CalculationInput(
             base_currency="USD",
@@ -44,7 +60,26 @@ class TestCalculationInput:
 
     def test_currency_code_validation(self):
         """Test currency code validation and normalization."""
-        rate_data = Mock(spec=RapiraRateData)
+        rate_data = RapiraRateData(
+            symbol="USD/RUB",
+            open=75.0,
+            high=76.0,
+            low=74.0,
+            close=75.5,
+            chg=0.01,
+            change=0.5,
+            fee=0.002,
+            last_day_close=75.0,
+            usd_rate=75.5,
+            base_usd_rate=1.0,
+            ask_price=75.7,
+            bid_price=75.3,
+            base_coin_scale=2,
+            coin_scale=2,
+            quote_currency_name="Russian Ruble",
+            base_currency="USD",
+            quote_currency="RUB",
+        )
 
         input_data = CalculationInput(
             base_currency="usd",
@@ -58,7 +93,26 @@ class TestCalculationInput:
 
     def test_invalid_amount_validation(self):
         """Test amount validation."""
-        rate_data = Mock(spec=RapiraRateData)
+        rate_data = RapiraRateData(
+            symbol="USD/RUB",
+            open=75.0,
+            high=76.0,
+            low=74.0,
+            close=75.5,
+            chg=0.01,
+            change=0.5,
+            fee=0.002,
+            last_day_close=75.0,
+            usd_rate=75.5,
+            base_usd_rate=1.0,
+            ask_price=75.7,
+            bid_price=75.3,
+            base_coin_scale=2,
+            coin_scale=2,
+            quote_currency_name="Russian Ruble",
+            base_currency="USD",
+            quote_currency="RUB",
+        )
 
         with pytest.raises(Exception):  # Pydantic ValidationError
             CalculationInput(
@@ -70,7 +124,26 @@ class TestCalculationInput:
 
     def test_amount_precision_limiting(self):
         """Test amount precision is limited to 8 decimal places."""
-        rate_data = Mock(spec=RapiraRateData)
+        rate_data = RapiraRateData(
+            symbol="USD/RUB",
+            open=75.0,
+            high=76.0,
+            low=74.0,
+            close=75.5,
+            chg=0.01,
+            change=0.5,
+            fee=0.002,
+            last_day_close=75.0,
+            usd_rate=75.5,
+            base_usd_rate=1.0,
+            ask_price=75.7,
+            bid_price=75.3,
+            base_coin_scale=2,
+            coin_scale=2,
+            quote_currency_name="Russian Ruble",
+            base_currency="USD",
+            quote_currency="RUB",
+        )
 
         input_data = CalculationInput(
             base_currency="USD",
@@ -84,7 +157,26 @@ class TestCalculationInput:
 
     def test_markup_rate_validation(self):
         """Test markup rate validation."""
-        rate_data = Mock(spec=RapiraRateData)
+        rate_data = RapiraRateData(
+            symbol="USD/RUB",
+            open=75.0,
+            high=76.0,
+            low=74.0,
+            close=75.5,
+            chg=0.01,
+            change=0.5,
+            fee=0.002,
+            last_day_close=75.0,
+            usd_rate=75.5,
+            base_usd_rate=1.0,
+            ask_price=75.7,
+            bid_price=75.3,
+            base_coin_scale=2,
+            coin_scale=2,
+            quote_currency_name="Russian Ruble",
+            base_currency="USD",
+            quote_currency="RUB",
+        )
 
         # Valid markup rate
         input_data = CalculationInput(
@@ -195,12 +287,26 @@ class TestCalculationService:
     @pytest.fixture
     def sample_rate_data(self):
         """Create sample rate data."""
-        rate_data = Mock(spec=RapiraRateData)
-        rate_data.symbol = "USD/RUB"
-        rate_data.ask_price = 75.5
-        rate_data.bid_price = 75.0
-        rate_data.close = 75.25
-        rate_data.spread_percentage = 0.66
+        rate_data = RapiraRateData(
+            symbol="USD/RUB",
+            open=75.0,
+            high=76.0,
+            low=74.0,
+            close=75.5,
+            chg=0.01,
+            change=0.5,
+            fee=0.002,
+            last_day_close=75.0,
+            usd_rate=75.5,
+            base_usd_rate=1.0,
+            ask_price=75.7,
+            bid_price=75.3,
+            base_coin_scale=2,
+            coin_scale=2,
+            quote_currency_name="Russian Ruble",
+            base_currency="USD",
+            quote_currency="RUB",
+        )
         return rate_data
 
     def test_service_initialization(self, calculation_service):
@@ -215,7 +321,8 @@ class TestCalculationService:
         """Test currency precision retrieval."""
         assert calculation_service._get_currency_precision("USD") == 2
         assert calculation_service._get_currency_precision("BTC") == 8
-        assert calculation_service._get_currency_precision("UNKNOWN") == 6  # Default
+        # Default
+        assert calculation_service._get_currency_precision("UNKNOWN") == 6
 
     def test_get_currency_symbol(self, calculation_service):
         """Test currency symbol retrieval."""
@@ -280,22 +387,56 @@ class TestCalculationService:
 
     def test_determine_calculation_direction_fallback(self, calculation_service):
         """Test calculation direction with fallback to close price."""
-        rate_data = Mock(spec=RapiraRateData)
-        rate_data.ask_price = 0
-        rate_data.close = 75.25
+        rate_data = RapiraRateData(
+            symbol="USD/RUB",
+            open=75.0,
+            high=76.0,
+            low=74.0,
+            close=75.5,
+            chg=0.01,
+            change=0.5,
+            fee=0.002,
+            last_day_close=75.0,
+            usd_rate=75.5,
+            base_usd_rate=1.0,
+            ask_price=0,
+            bid_price=0,
+            base_coin_scale=2,
+            coin_scale=2,
+            quote_currency_name="Russian Ruble",
+            base_currency="USD",
+            quote_currency="RUB",
+        )
 
         direction, rate = calculation_service._determine_calculation_direction(
             rate_data, "USD/RUB"
         )
 
         assert direction == "buy"
-        assert rate == Decimal("75.25")
+        assert rate == Decimal("75.5")
 
     def test_determine_calculation_direction_no_data(self, calculation_service):
         """Test calculation direction with no valid data."""
-        rate_data = Mock(spec=RapiraRateData)
-        rate_data.ask_price = 0
-        rate_data.close = 0
+        rate_data = RapiraRateData(
+            symbol="USD/RUB",
+            open=75.0,
+            high=76.0,
+            low=74.0,
+            close=75.5,
+            chg=0.01,
+            change=0.5,
+            fee=0.002,
+            last_day_close=75.0,
+            usd_rate=75.5,
+            base_usd_rate=1.0,
+            ask_price=0,
+            bid_price=0,
+            base_coin_scale=2,
+            coin_scale=2,
+            quote_currency_name="Russian Ruble",
+            base_currency="USD",
+            quote_currency="RUB",
+        )
 
         with pytest.raises(RateDataError, match="No valid rate data"):
             calculation_service._determine_calculation_direction(rate_data, "USD/RUB")
@@ -423,10 +564,26 @@ class TestCalculationService:
     @pytest.mark.asyncio
     async def test_calculate_reverse_exchange_no_bid_price(self, calculation_service):
         """Test reverse calculation with no bid price."""
-        rate_data = Mock(spec=RapiraRateData)
-        rate_data.bid_price = 0
-        rate_data.close = 75.25
-        rate_data.spread_percentage = 0.66
+        rate_data = RapiraRateData(
+            symbol="USD/RUB",
+            open=75.0,
+            high=76.0,
+            low=74.0,
+            close=75.5,
+            chg=0.01,
+            change=0.5,
+            fee=0.002,
+            last_day_close=75.0,
+            usd_rate=75.5,
+            base_usd_rate=1.0,
+            ask_price=0,
+            bid_price=0,
+            base_coin_scale=2,
+            coin_scale=2,
+            quote_currency_name="Russian Ruble",
+            base_currency="USD",
+            quote_currency="RUB",
+        )
 
         calculation_input = CalculationInput(
             base_currency="USD",
@@ -560,7 +717,7 @@ class TestCalculationServiceIntegration:
     @pytest.fixture
     def real_settings(self):
         """Create realistic settings for integration tests."""
-        from src.config.models import (
+        from config.models import (
             Settings,
             TelegramConfig,
             RapiraApiConfig,
@@ -602,12 +759,26 @@ class TestCalculationServiceIntegration:
     async def test_full_calculation_flow(self, integration_service):
         """Test complete calculation flow with realistic data."""
         # Create realistic rate data
-        rate_data = Mock(spec=RapiraRateData)
-        rate_data.symbol = "USD/RUB"
-        rate_data.ask_price = 75.5
-        rate_data.bid_price = 75.0
-        rate_data.close = 75.25
-        rate_data.spread_percentage = 0.66
+        rate_data = RapiraRateData(
+            symbol="USD/RUB",
+            open=75.0,
+            high=76.0,
+            low=74.0,
+            close=75.5,
+            chg=0.01,
+            change=0.5,
+            fee=0.002,
+            last_day_close=75.0,
+            usd_rate=75.5,
+            base_usd_rate=1.0,
+            ask_price=75.7,
+            bid_price=75.3,
+            base_coin_scale=2,
+            coin_scale=2,
+            quote_currency_name="Russian Ruble",
+            base_currency="USD",
+            quote_currency="RUB",
+        )
 
         # Create calculation input
         calculation_input = CalculationInput(
@@ -663,12 +834,26 @@ class TestCalculationServiceIntegration:
         ]
 
         for base, quote, amount, rate in pairs_data:
-            rate_data = Mock(spec=RapiraRateData)
-            rate_data.symbol = f"{base}/{quote}"
-            rate_data.ask_price = rate
-            rate_data.bid_price = rate * 0.999
-            rate_data.close = rate * 0.9995
-            rate_data.spread_percentage = 0.1
+            rate_data = RapiraRateData(
+                symbol=f"{base}/{quote}",
+                open=75.0,
+                high=76.0,
+                low=74.0,
+                close=75.5,
+                chg=0.01,
+                change=0.5,
+                fee=0.002,
+                last_day_close=75.0,
+                usd_rate=75.5,
+                base_usd_rate=1.0,
+                ask_price=rate,
+                bid_price=rate * 0.999,
+                base_coin_scale=2,
+                coin_scale=2,
+                quote_currency_name=quote,
+                base_currency=base,
+                quote_currency=quote,
+            )
 
             calculation_input = CalculationInput(
                 base_currency=base,

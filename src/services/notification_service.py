@@ -19,7 +19,7 @@ from aiogram.exceptions import (
     TelegramBadRequest,
     TelegramForbiddenError,
 )
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from pydantic import BaseModel, Field, field_validator
 
 from config.models import ManagerConfig, Settings
