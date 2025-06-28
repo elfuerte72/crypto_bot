@@ -66,7 +66,7 @@ class TestCurrencyKeyboard:
         keyboard = CurrencyKeyboard()
 
         text = keyboard._format_currency_button_text("BTC", "USD")
-        assert text == " BTC → USD "
+        assert text == "₿ BTC → USD 🇺🇸"
 
     def test_create_callback_data(self):
         """Test callback data creation."""
@@ -83,9 +83,9 @@ class TestCurrencyKeyboard:
         keyboard = CurrencyKeyboard()
         markup = keyboard.create_rate_selection_keyboard()
 
-        # Should have 16 buttons (8 pairs × 2 directions)
+        # Should have 8 buttons (8 pairs × 1 direction)
         total_buttons = sum(len(row) for row in markup.inline_keyboard)
-        assert total_buttons == 16
+        assert total_buttons == 8
 
         # Check first row has 2 buttons (2-column layout)
         assert len(markup.inline_keyboard[0]) == 2
@@ -270,9 +270,9 @@ class TestConvenienceFunctions:
         # Should return InlineKeyboardMarkup
         assert hasattr(markup, "inline_keyboard")
 
-        # Should have 16 buttons (8 pairs × 2 directions)
+        # Should have 8 buttons (8 pairs × 1 direction)
         total_buttons = sum(len(row) for row in markup.inline_keyboard)
-        assert total_buttons == 16
+        assert total_buttons == 8
 
     def test_get_rate_keyboard_with_settings(self):
         """Test get_rate_keyboard with settings."""
@@ -283,9 +283,9 @@ class TestConvenienceFunctions:
 
         markup = get_rate_keyboard(settings)
 
-        # Should have 2 buttons (1 pair × 2 directions)
+        # Should have 1 button (1 pair × 1 direction)
         total_buttons = sum(len(row) for row in markup.inline_keyboard)
-        assert total_buttons == 2
+        assert total_buttons == 1
 
     def test_get_calc_keyboard(self):
         """Test get_calc_keyboard convenience function."""
@@ -332,7 +332,7 @@ class TestKeyboardIntegration:
         rate_buttons = sum(len(row) for row in rate_markup.inline_keyboard)
         calc_buttons = sum(len(row) for row in calc_markup.inline_keyboard)
 
-        assert rate_buttons == calc_buttons == 16
+        assert rate_buttons == calc_buttons == 8
 
     def test_callback_data_parsing_roundtrip(self):
         """Test callback data creation and parsing roundtrip."""
@@ -360,8 +360,8 @@ class TestKeyboardIntegration:
         for row in markup.inline_keyboard:
             assert len(row) <= 2, "Row has more than 2 buttons"
 
-        # Should have 8 rows (16 buttons ÷ 2 columns)
-        assert len(markup.inline_keyboard) == 8
+        # Should have 4 rows (8 buttons ÷ 2 columns)
+        assert len(markup.inline_keyboard) == 4
 
     def test_emoji_display_consistency(self):
         """Test emoji display consistency across keyboards."""

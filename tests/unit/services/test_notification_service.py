@@ -28,7 +28,7 @@ from src.services.notification_service import (
     TemplateError,
     TelegramDeliveryError,
 )
-from src.services.calculation_service import CalculationResult
+from services.calculation_service import CalculationResult
 from src.templates.notification_templates import NotificationTemplates
 
 

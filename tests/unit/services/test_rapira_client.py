@@ -11,14 +11,14 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from src.models.rapira_models import (
+from models.rapira_models import (
     CircuitBreakerState,
     RapiraApiResponse,
     RapiraClientConfig,
     RapiraRateData,
     RapiraRequestMetrics,
 )
-from src.services.rapira_client import (
+from services.rapira_client import (
     RapiraApiClient,
     RapiraApiException,
     RapiraCircuitBreakerError,
@@ -580,8 +580,16 @@ class TestRapiraClientFactory:
         mock_settings.rapira_api.backoff_factor = 2.0
 
         # Mock getattr to return default values for circuit breaker settings
-        with patch("src.services.rapira_client.getattr") as mock_getattr:
-            mock_getattr.side_effect = lambda obj, attr, default: default
+        with patch("services.rapira_client.getattr") as mock_getattr:
+
+            def getattr_side_effect(obj, attr, default):
+                if attr == "circuit_breaker_threshold":
+                    return 5
+                elif attr == "circuit_breaker_timeout":
+                    return 10  # Must be >= 10 according to validation
+                return default
+
+            mock_getattr.side_effect = getattr_side_effect
 
             client = RapiraClientFactory.create_from_settings(mock_settings)
 

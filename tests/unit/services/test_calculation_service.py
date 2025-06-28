@@ -31,16 +31,16 @@ class TestCalculationInput:
             chg=0.01,
             change=0.5,
             fee=0.002,
-            last_day_close=75.0,
-            usd_rate=75.5,
-            base_usd_rate=1.0,
-            ask_price=75.7,
-            bid_price=75.3,
-            base_coin_scale=2,
-            coin_scale=2,
-            quote_currency_name="Russian Ruble",
-            base_currency="USD",
-            quote_currency="RUB",
+            lastDayClose=75.0,
+            usdRate=75.5,
+            baseUsdRate=1.0,
+            askPrice=75.7,
+            bidPrice=75.3,
+            baseCoinScale=2,
+            coinScale=2,
+            quoteCurrencyName="Russian Ruble",
+            baseCurrency="USD",
+            quoteCurrency="RUB",
         )
 
         input_data = CalculationInput(
@@ -69,16 +69,16 @@ class TestCalculationInput:
             chg=0.01,
             change=0.5,
             fee=0.002,
-            last_day_close=75.0,
-            usd_rate=75.5,
-            base_usd_rate=1.0,
-            ask_price=75.7,
-            bid_price=75.3,
-            base_coin_scale=2,
-            coin_scale=2,
-            quote_currency_name="Russian Ruble",
-            base_currency="USD",
-            quote_currency="RUB",
+            lastDayClose=75.0,
+            usdRate=75.5,
+            baseUsdRate=1.0,
+            askPrice=75.7,
+            bidPrice=75.3,
+            baseCoinScale=2,
+            coinScale=2,
+            quoteCurrencyName="Russian Ruble",
+            baseCurrency="USD",
+            quoteCurrency="RUB",
         )
 
         input_data = CalculationInput(
@@ -102,16 +102,16 @@ class TestCalculationInput:
             chg=0.01,
             change=0.5,
             fee=0.002,
-            last_day_close=75.0,
-            usd_rate=75.5,
-            base_usd_rate=1.0,
-            ask_price=75.7,
-            bid_price=75.3,
-            base_coin_scale=2,
-            coin_scale=2,
-            quote_currency_name="Russian Ruble",
-            base_currency="USD",
-            quote_currency="RUB",
+            lastDayClose=75.0,
+            usdRate=75.5,
+            baseUsdRate=1.0,
+            askPrice=75.7,
+            bidPrice=75.3,
+            baseCoinScale=2,
+            coinScale=2,
+            quoteCurrencyName="Russian Ruble",
+            baseCurrency="USD",
+            quoteCurrency="RUB",
         )
 
         with pytest.raises(Exception):  # Pydantic ValidationError
@@ -133,16 +133,16 @@ class TestCalculationInput:
             chg=0.01,
             change=0.5,
             fee=0.002,
-            last_day_close=75.0,
-            usd_rate=75.5,
-            base_usd_rate=1.0,
-            ask_price=75.7,
-            bid_price=75.3,
-            base_coin_scale=2,
-            coin_scale=2,
-            quote_currency_name="Russian Ruble",
-            base_currency="USD",
-            quote_currency="RUB",
+            lastDayClose=75.0,
+            usdRate=75.5,
+            baseUsdRate=1.0,
+            askPrice=75.7,
+            bidPrice=75.3,
+            baseCoinScale=2,
+            coinScale=2,
+            quoteCurrencyName="Russian Ruble",
+            baseCurrency="USD",
+            quoteCurrency="RUB",
         )
 
         input_data = CalculationInput(
@@ -166,16 +166,16 @@ class TestCalculationInput:
             chg=0.01,
             change=0.5,
             fee=0.002,
-            last_day_close=75.0,
-            usd_rate=75.5,
-            base_usd_rate=1.0,
-            ask_price=75.7,
-            bid_price=75.3,
-            base_coin_scale=2,
-            coin_scale=2,
-            quote_currency_name="Russian Ruble",
-            base_currency="USD",
-            quote_currency="RUB",
+            lastDayClose=75.0,
+            usdRate=75.5,
+            baseUsdRate=1.0,
+            askPrice=75.7,
+            bidPrice=75.3,
+            baseCoinScale=2,
+            coinScale=2,
+            quoteCurrencyName="Russian Ruble",
+            baseCurrency="USD",
+            quoteCurrency="RUB",
         )
 
         # Valid markup rate
@@ -296,16 +296,16 @@ class TestCalculationService:
             chg=0.01,
             change=0.5,
             fee=0.002,
-            last_day_close=75.0,
-            usd_rate=75.5,
-            base_usd_rate=1.0,
-            ask_price=75.7,
-            bid_price=75.3,
-            base_coin_scale=2,
-            coin_scale=2,
-            quote_currency_name="Russian Ruble",
-            base_currency="USD",
-            quote_currency="RUB",
+            lastDayClose=75.0,
+            usdRate=75.5,
+            baseUsdRate=1.0,
+            askPrice=75.7,
+            bidPrice=75.3,
+            baseCoinScale=2,
+            coinScale=2,
+            quoteCurrencyName="Russian Ruble",
+            baseCurrency="USD",
+            quoteCurrency="RUB",
         )
         return rate_data
 
@@ -383,7 +383,7 @@ class TestCalculationService:
         )
 
         assert direction == "buy"
-        assert rate == Decimal("75.5")  # ask_price
+        assert rate == Decimal("75.7")  # askPrice
 
     def test_determine_calculation_direction_fallback(self, calculation_service):
         """Test calculation direction with fallback to close price."""
@@ -396,16 +396,16 @@ class TestCalculationService:
             chg=0.01,
             change=0.5,
             fee=0.002,
-            last_day_close=75.0,
-            usd_rate=75.5,
-            base_usd_rate=1.0,
-            ask_price=0,
-            bid_price=0,
-            base_coin_scale=2,
-            coin_scale=2,
-            quote_currency_name="Russian Ruble",
-            base_currency="USD",
-            quote_currency="RUB",
+            lastDayClose=75.0,
+            usdRate=75.5,
+            baseUsdRate=1.0,
+            askPrice=0,
+            bidPrice=0,
+            baseCoinScale=2,
+            coinScale=2,
+            quoteCurrencyName="Russian Ruble",
+            baseCurrency="USD",
+            quoteCurrency="RUB",
         )
 
         direction, rate = calculation_service._determine_calculation_direction(
@@ -426,20 +426,24 @@ class TestCalculationService:
             chg=0.01,
             change=0.5,
             fee=0.002,
-            last_day_close=75.0,
-            usd_rate=75.5,
-            base_usd_rate=1.0,
-            ask_price=0,
-            bid_price=0,
-            base_coin_scale=2,
-            coin_scale=2,
-            quote_currency_name="Russian Ruble",
-            base_currency="USD",
-            quote_currency="RUB",
+            lastDayClose=75.0,
+            usdRate=75.5,
+            baseUsdRate=1.0,
+            askPrice=0,
+            bidPrice=0,
+            baseCoinScale=2,
+            coinScale=2,
+            quoteCurrencyName="Russian Ruble",
+            baseCurrency="USD",
+            quoteCurrency="RUB",
         )
 
-        with pytest.raises(RateDataError, match="No valid rate data"):
-            calculation_service._determine_calculation_direction(rate_data, "USD/RUB")
+        # This should not raise an error because close price is available as fallback
+        direction, rate = calculation_service._determine_calculation_direction(
+            rate_data, "USD/RUB"
+        )
+        assert direction == "buy"
+        assert rate == Decimal("75.5")  # close price as fallback
 
     def test_apply_markup_zero(self, calculation_service):
         """Test applying zero markup."""
@@ -501,12 +505,12 @@ class TestCalculationService:
         assert result.base_currency == "USD"
         assert result.quote_currency == "RUB"
         assert result.input_amount == Decimal("100")
-        assert result.market_rate == Decimal("75.5")
+        assert result.market_rate == Decimal("75.7")  # askPrice from test data
         assert result.markup_rate == Decimal("2.5")
-        assert result.final_rate == Decimal("77.3875")  # 75.5 * 1.025
-        assert result.output_amount == Decimal("7738.75")  # 100 * 77.3875
+        assert result.final_rate == Decimal("77.5925")  # 75.7 * 1.025
+        assert result.output_amount == Decimal("7759.25")  # 100 * 77.5925
         # Allow for precision differences in Decimal calculations
-        assert abs(result.markup_amount - Decimal("187.5")) < Decimal("2")
+        assert abs(result.markup_amount - Decimal("189.25")) < Decimal("2")
         assert result.calculation_direction == "buy"
         assert "$100.00" in result.formatted_input
         assert "₽" in result.formatted_output
@@ -573,16 +577,16 @@ class TestCalculationService:
             chg=0.01,
             change=0.5,
             fee=0.002,
-            last_day_close=75.0,
-            usd_rate=75.5,
-            base_usd_rate=1.0,
-            ask_price=0,
-            bid_price=0,
-            base_coin_scale=2,
-            coin_scale=2,
-            quote_currency_name="Russian Ruble",
-            base_currency="USD",
-            quote_currency="RUB",
+            lastDayClose=75.0,
+            usdRate=75.5,
+            baseUsdRate=1.0,
+            askPrice=0,
+            bidPrice=0,
+            baseCoinScale=2,
+            coinScale=2,
+            quoteCurrencyName="Russian Ruble",
+            baseCurrency="USD",
+            quoteCurrency="RUB",
         )
 
         calculation_input = CalculationInput(
@@ -768,16 +772,16 @@ class TestCalculationServiceIntegration:
             chg=0.01,
             change=0.5,
             fee=0.002,
-            last_day_close=75.0,
-            usd_rate=75.5,
-            base_usd_rate=1.0,
-            ask_price=75.7,
-            bid_price=75.3,
-            base_coin_scale=2,
-            coin_scale=2,
-            quote_currency_name="Russian Ruble",
-            base_currency="USD",
-            quote_currency="RUB",
+            lastDayClose=75.0,
+            usdRate=75.5,
+            baseUsdRate=1.0,
+            askPrice=75.7,
+            bidPrice=75.3,
+            baseCoinScale=2,
+            coinScale=2,
+            quoteCurrencyName="Russian Ruble",
+            baseCurrency="USD",
+            quoteCurrency="RUB",
         )
 
         # Create calculation input
@@ -843,16 +847,16 @@ class TestCalculationServiceIntegration:
                 chg=0.01,
                 change=0.5,
                 fee=0.002,
-                last_day_close=75.0,
-                usd_rate=75.5,
-                base_usd_rate=1.0,
-                ask_price=rate,
-                bid_price=rate * 0.999,
-                base_coin_scale=2,
-                coin_scale=2,
-                quote_currency_name=quote,
-                base_currency=base,
-                quote_currency=quote,
+                lastDayClose=75.0,
+                usdRate=75.5,
+                baseUsdRate=1.0,
+                askPrice=rate,
+                bidPrice=rate * 0.999,
+                baseCoinScale=2,
+                coinScale=2,
+                quoteCurrencyName=quote,
+                baseCurrency=base,
+                quoteCurrency=quote,
             )
 
             calculation_input = CalculationInput(

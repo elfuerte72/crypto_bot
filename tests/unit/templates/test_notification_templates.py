@@ -5,8 +5,8 @@ and template validation functionality.
 """
 
 
-from src.services.notification_service import NotificationTemplate
-from src.templates.notification_templates import NotificationTemplates
+from services.notification_service import NotificationTemplate
+from templates.notification_templates import NotificationTemplates
 
 
 class TestNotificationTemplatesClass:

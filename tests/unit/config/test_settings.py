@@ -93,8 +93,8 @@ class TestSettingsInitialization:
         # Should have default currency pairs
         assert len(settings.currency_pairs) > 0
 
-        # Check some expected default pairs
-        expected_pairs = ["USD/RUB", "EUR/RUB", "BTC/USD", "ETH/USD"]
+        # Check some expected default pairs (updated to match new defaults)
+        expected_pairs = ["USDT/RUB", "BTC/USDT", "ETH/USDT", "ETH/BTC"]
         for pair in expected_pairs:
             assert pair in settings.currency_pairs
             assert settings.currency_pairs[pair].is_active is True
