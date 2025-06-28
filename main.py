@@ -25,7 +25,7 @@ if str(src_path) not in sys.path:
 
 # Import after path setup
 from config.settings import get_settings  # noqa: E402
-from bot.handlers import basic_router, rate_router  # noqa: E402
+from bot.handlers import basic_router, rate_router, calc_router  # noqa: E402
 
 
 # Global variables for graceful shutdown
@@ -112,6 +112,8 @@ async def create_dispatcher() -> Dispatcher:
     logging.info("✅ Basic handlers router registered")
     dp.include_router(rate_router)
     logging.info("✅ Rate handler router registered")
+    dp.include_router(calc_router)
+    logging.info("✅ Calc handler router registered")
 
     # Add global data to dispatcher
     dp["settings"] = settings
