@@ -155,6 +155,26 @@ class CacheService:
         self._client: Optional[redis.Redis] = None
         self._is_connected = False
 
+    @classmethod
+    def create(cls, settings: Any) -> "CacheService":
+        """Create cache service instance from settings.
+
+        Args:
+            settings: Application settings object
+
+        Returns:
+            Configured cache service instance
+        """
+        return cls(redis_config=settings.redis, cache_config=settings.cache)
+
+    async def initialize(self) -> None:
+        """Initialize the cache service (connect to Redis)."""
+        await self.connect()
+
+    async def cleanup(self) -> None:
+        """Cleanup the cache service (disconnect from Redis)."""
+        await self.disconnect()
+
     async def __aenter__(self) -> CacheService:
         """Async context manager entry."""
         await self.connect()

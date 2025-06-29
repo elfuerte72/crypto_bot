@@ -131,6 +131,8 @@ class ValidationError(BotError):
     """Validation related errors."""
 
     def __init__(self, message: str, **kwargs):
+        # Remove severity from kwargs if it exists to avoid duplicate
+        kwargs.pop("severity", None)
         super().__init__(
             message,
             error_type=ErrorType.VALIDATION,
@@ -311,11 +313,19 @@ class ErrorHandler:
         """Track error statistics."""
         if self.stats_service:
             try:
-                await self.stats_service.track_error(
+                context = error.context.copy()
+                context.update(
+                    {
+                        "correlation_id": error.correlation_id,
+                        "severity": error.severity.value,
+                    }
+                )
+
+                await self.stats_service.record_error(
                     error_type=error.error_type.value,
-                    severity=error.severity.value,
-                    correlation_id=error.correlation_id,
-                    context=error.context,
+                    error_message=str(error),
+                    user_id=error.context.get("user_id"),
+                    context=context,
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to track error stats: {e}")

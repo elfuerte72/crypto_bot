@@ -192,7 +192,7 @@ class TestErrorHandler:
     async def test_convert_to_bot_error(self, error_handler):
         """Test conversion of standard exceptions to BotError."""
         # Test TelegramAPIError conversion
-        telegram_error = TelegramAPIError("API Error")
+        telegram_error = TelegramAPIError(method="getMe", message="API Error")
         bot_error = error_handler._convert_to_bot_error(telegram_error)
         assert isinstance(bot_error, TelegramError)
         assert bot_error.error_type == ErrorType.TELEGRAM_API
@@ -242,7 +242,11 @@ class TestErrorHandler:
         chat = Chat(id=67890, type="private")
         message = Message(message_id=1, date=1234567890, chat=chat)
         callback = CallbackQuery(
-            id="callback123", from_user=user, data="test_callback_data", message=message
+            id="callback123",
+            from_user=user,
+            data="test_callback_data",
+            message=message,
+            chat_instance="test_chat_instance",
         )
 
         context = error_handler._extract_event_context(callback)
@@ -263,11 +267,11 @@ class TestErrorHandler:
 
         await error_handler._track_error_stats(error)
 
-        error_handler.stats_service.track_error.assert_called_once_with(
+        error_handler.stats_service.record_error.assert_called_once_with(
             error_type="validation",
-            severity="medium",
-            correlation_id="test123",
-            context={},
+            error_message="Test error",
+            user_id=None,
+            context={"correlation_id": "test123", "severity": "medium"},
         )
 
     @pytest.mark.asyncio
@@ -303,6 +307,8 @@ class TestErrorHandler:
         message = AsyncMock(spec=Message)
         message.from_user = user
         message.chat = chat
+        message.message_id = 1
+        message.text = "/rate"
         message.answer = AsyncMock()
 
         error = BotError("Test error", correlation_id="test123")
@@ -360,7 +366,7 @@ class TestErrorHandler:
         assert correlation_id == "high123"
 
         # Verify stats tracking called
-        error_handler.stats_service.track_error.assert_called_once()
+        error_handler.stats_service.record_error.assert_called_once()
 
         # Verify admin notification sent (high severity)
         assert (
@@ -382,8 +388,8 @@ class TestErrorHandler:
         assert len(correlation_id) == 8
 
         # Should track as validation error
-        error_handler.stats_service.track_error.assert_called_once()
-        call_args = error_handler.stats_service.track_error.call_args[1]
+        error_handler.stats_service.record_error.assert_called_once()
+        call_args = error_handler.stats_service.record_error.call_args[1]
         assert call_args["error_type"] == "validation"
 
     @pytest.mark.asyncio
@@ -394,6 +400,8 @@ class TestErrorHandler:
         message = AsyncMock(spec=Message)
         message.from_user = user
         message.chat = chat
+        message.message_id = 1
+        message.text = "/rate"
         message.answer = AsyncMock()
 
         error = RuntimeError("Command failed")
@@ -404,8 +412,8 @@ class TestErrorHandler:
 
         # Should include command in context
         assert correlation_id is not None
-        error_handler.stats_service.track_error.assert_called_once()
-        call_args = error_handler.stats_service.track_error.call_args[1]
+        error_handler.stats_service.record_error.assert_called_once()
+        call_args = error_handler.stats_service.record_error.call_args[1]
         assert call_args["context"]["command"] == "/rate"
 
     @pytest.mark.asyncio
@@ -414,6 +422,8 @@ class TestErrorHandler:
         user = User(id=12345, is_bot=False, first_name="Test")
         callback = AsyncMock(spec=CallbackQuery)
         callback.from_user = user
+        callback.data = "rate_USDT_RUB"
+        callback.message = None
         callback.answer = AsyncMock()
 
         error = RuntimeError("Callback failed")
@@ -424,8 +434,8 @@ class TestErrorHandler:
 
         # Should include callback data in context
         assert correlation_id is not None
-        error_handler.stats_service.track_error.assert_called_once()
-        call_args = error_handler.stats_service.track_error.call_args[1]
+        error_handler.stats_service.record_error.assert_called_once()
+        call_args = error_handler.stats_service.record_error.call_args[1]
         assert call_args["context"]["callback_data"] == "rate_USDT_RUB"
 
 

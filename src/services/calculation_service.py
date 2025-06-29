@@ -161,6 +161,18 @@ class CalculationService(BaseService):
         self._currency_symbols: Dict[str, str] = {}
         self._initialize_currency_data()
 
+    @classmethod
+    def create(cls, settings: Any) -> "CalculationService":
+        """Create calculation service instance from settings.
+
+        Args:
+            settings: Application settings object
+
+        Returns:
+            Configured calculation service instance
+        """
+        return cls(settings)
+
     async def initialize(self) -> None:
         """Initialize calculation service."""
         logger.info("Calculation service initialized")

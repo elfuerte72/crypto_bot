@@ -179,6 +179,19 @@ class NotificationService(BaseService):
         self._templates: Dict[str, NotificationTemplate] = {}
         self._initialize_templates()
 
+    @classmethod
+    def create(cls, settings: Any, bot: Bot) -> "NotificationService":
+        """Create notification service instance from settings.
+
+        Args:
+            settings: Application settings object
+            bot: Telegram bot instance
+
+        Returns:
+            Configured notification service instance
+        """
+        return cls(settings, bot)
+
     async def initialize(self) -> None:
         """Initialize notification service."""
         logger.info("Notification service initialized")

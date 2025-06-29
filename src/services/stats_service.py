@@ -317,6 +317,19 @@ class StatsService:
         self._error_stats: List[ErrorStats] = []
         self._system_stats = SystemStats(uptime_seconds=0.0)
 
+    @classmethod
+    def create(cls, settings: Any, cache_service: CacheService) -> "StatsService":
+        """Create stats service instance from settings.
+
+        Args:
+            settings: Application settings object
+            cache_service: Cache service instance
+
+        Returns:
+            Configured stats service instance
+        """
+        return cls(settings, cache_service)
+
     async def initialize(self) -> None:
         """Initialize statistics service and load existing data."""
         try:

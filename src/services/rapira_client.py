@@ -75,6 +75,39 @@ class RapiraApiClient:
         self.metrics = RapiraRequestMetrics()
         self._client: httpx.AsyncClient | None = None
 
+    @classmethod
+    def create(cls, settings: Any) -> "RapiraApiClient":
+        """Create Rapira API client instance from settings.
+
+        Args:
+            settings: Application settings object
+
+        Returns:
+            Configured Rapira API client instance
+        """
+        config = RapiraClientConfig(
+            base_url=settings.rapira_api.base_url,
+            timeout=settings.rapira_api.timeout,
+            max_retries=settings.rapira_api.max_retries,
+            retry_delay=settings.rapira_api.retry_delay,
+            backoff_factor=settings.rapira_api.backoff_factor,
+            circuit_breaker_threshold=getattr(
+                settings.rapira_api, "circuit_breaker_threshold", 5
+            ),
+            circuit_breaker_timeout=getattr(
+                settings.rapira_api, "circuit_breaker_timeout", 60
+            ),
+        )
+        return cls(config)
+
+    async def initialize(self) -> None:
+        """Initialize the API client."""
+        await self._ensure_client()
+
+    async def cleanup(self) -> None:
+        """Cleanup the API client."""
+        await self.close()
+
     async def __aenter__(self) -> RapiraApiClient:
         """Async context manager entry."""
         await self._ensure_client()
