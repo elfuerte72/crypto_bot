@@ -48,7 +48,7 @@ jobs:
     - name: Create test .env file
       run: |
         cat > .env << EOF
-        BOT_TOKEN=123456789:AAFakeTokenForTests1234567890abcdefghi
+        BOT_TOKEN=123456789:AAF3zv7xJw8yQp5eH6lV0bC1tK2sM3nQ4oP5R6sT
         RAPIRA_API_URL=https://api.rapira.test
         RAPIRA_API_KEY=test_api_key
         REDIS_URL=redis://localhost:6379/0

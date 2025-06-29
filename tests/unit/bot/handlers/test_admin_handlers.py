@@ -598,7 +598,6 @@ class TestAdminStates:
     def test_admin_states_defined(self):
         """Test that AdminStates are properly defined."""
         assert hasattr(AdminStates, "waiting_for_markup_value")
-        assert isinstance(
-            AdminStates.waiting_for_markup_value,
-            type(AdminStates.waiting_for_markup_value),
-        )
+        from aiogram.fsm.state import State
+
+        assert isinstance(AdminStates.waiting_for_markup_value, State)

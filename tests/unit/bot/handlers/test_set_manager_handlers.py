@@ -588,7 +588,6 @@ class TestAdminStatesExtended:
     def test_admin_states_manager_defined(self):
         """Test that manager-related AdminStates are properly defined."""
         assert hasattr(AdminStates, "waiting_for_manager_id")
-        assert isinstance(
-            AdminStates.waiting_for_manager_id,
-            type(AdminStates.waiting_for_manager_id),
-        )
+        from aiogram.fsm.state import State
+
+        assert isinstance(AdminStates.waiting_for_manager_id, State)
