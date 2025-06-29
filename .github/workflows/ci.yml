@@ -48,12 +48,24 @@ jobs:
     - name: Create test .env file
       run: |
         cat > .env << EOF
-        BOT_TOKEN=123456789:AAF3zv7xJw8yQp5eH6lV0bC1tK2sM3nQ4oP5R6sT
-        RAPIRA_API_URL=https://api.rapira.test
-        RAPIRA_API_KEY=test_api_key
-        REDIS_URL=redis://localhost:6379/0
-        LOG_LEVEL=DEBUG
-        ENVIRONMENT=test
+        TELEGRAM__TOKEN=123456789:AAF3zv7xJw8yQp5eH6lV0bC1tK2sM3nQ4oP5R6sT
+        TELEGRAM__ADMIN_USER_IDS=[123456789]
+        RAPIRA_API__BASE_URL=https://api.rapira.test
+        RAPIRA_API__API_KEY=test_api_key
+        RAPIRA_API__TIMEOUT=30
+        RAPIRA_API__MAX_RETRIES=3
+        REDIS__HOST=localhost
+        REDIS__PORT=6379
+        REDIS__DB=0
+        CACHE__RATE_TTL=60
+        CACHE__CALCULATION_TTL=30
+        CACHE__STATS_TTL=300
+        LOGGING__LEVEL=DEBUG
+        LOGGING__FORMAT=text
+        APPLICATION__ENVIRONMENT=test
+        APPLICATION__DEBUG=true
+        DEFAULT_MARKUP_RATE=2.5
+        DEFAULT_MANAGER_ID=123456789
         EOF
 
     - name: Run tests only
