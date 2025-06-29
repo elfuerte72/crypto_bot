@@ -17,6 +17,78 @@ from src.utils.error_handler import ErrorHandler
 from src.utils.logger import setup_structured_logging
 
 
+@pytest.fixture(scope="session")
+async def mock_redis():
+    """Mock Redis for testing."""
+    with patch("redis.Redis") as mock_redis_class, patch(
+        "redis.ConnectionPool"
+    ) as mock_pool_class:
+        redis_instance = AsyncMock()
+        pool_instance = AsyncMock()
+
+        mock_redis_class.return_value = redis_instance
+        mock_pool_class.return_value = pool_instance
+
+        # Make ping() properly awaitable
+        async def ping():
+            return True
+
+        redis_instance.ping = ping
+
+        # Make other methods properly awaitable
+        async def get(key):
+            return None
+
+        redis_instance.get = get
+
+        async def set(key, value, ex=None):
+            return True
+
+        redis_instance.set = set
+
+        async def delete(*keys):
+            return len(keys)
+
+        redis_instance.delete = delete
+
+        async def close():
+            return None
+
+        redis_instance.close = close
+
+        # Pool methods
+        async def disconnect():
+            return None
+
+        pool_instance.disconnect = disconnect
+
+        yield redis_instance
+
+
+@pytest.fixture(scope="session")
+async def mock_httpx():
+    """Mock httpx for testing."""
+    with patch("httpx.AsyncClient") as mock:
+        client_instance = AsyncMock()
+        mock.return_value = client_instance
+
+        # Mock successful API response
+        response = AsyncMock()
+        response.status_code = 200
+        response.json.return_value = {
+            "success": True,
+            "data": {
+                "USDT_RUB": {"rate": 95.50, "change": 0.5},
+                "BTC_USDT": {"rate": 42000.0, "change": -1.2},
+            },
+        }
+        response.raise_for_status.return_value = None
+        client_instance.get.return_value = response
+        client_instance.post.return_value = response
+
+        yield client_instance
+
+
 class TestApplicationIntegration:
     """Test application initialization and integration."""
 
@@ -29,42 +101,6 @@ class TestApplicationIntegration:
         settings.redis.port = 6379
         settings.redis.db = 1  # Use test database
         return settings
-
-    @pytest.fixture
-    async def mock_redis(self):
-        """Mock Redis for testing."""
-        with patch("redis.asyncio.Redis") as mock:
-            redis_instance = AsyncMock()
-            mock.from_url.return_value = redis_instance
-            redis_instance.ping.return_value = True
-            redis_instance.get.return_value = None
-            redis_instance.set.return_value = True
-            redis_instance.delete.return_value = 1
-            redis_instance.close.return_value = None
-            yield redis_instance
-
-    @pytest.fixture
-    async def mock_httpx(self):
-        """Mock httpx for testing."""
-        with patch("httpx.AsyncClient") as mock:
-            client_instance = AsyncMock()
-            mock.return_value = client_instance
-
-            # Mock successful API response
-            response = AsyncMock()
-            response.status_code = 200
-            response.json.return_value = {
-                "success": True,
-                "data": {
-                    "USDT_RUB": {"rate": 95.50, "change": 0.5},
-                    "BTC_USDT": {"rate": 42000.0, "change": -1.2},
-                },
-            }
-            response.raise_for_status.return_value = None
-            client_instance.get.return_value = response
-            client_instance.post.return_value = response
-
-            yield client_instance
 
     @pytest.mark.asyncio
     async def test_service_container_initialization(
