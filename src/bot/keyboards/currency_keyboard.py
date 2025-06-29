@@ -184,6 +184,35 @@ class CurrencyKeyboard:
 
         return builder.as_markup()
 
+    def create_manager_selection_keyboard(self) -> InlineKeyboardMarkup:
+        """Create keyboard for manager assignment selection.
+
+        Returns:
+            InlineKeyboardMarkup with currency pairs for manager assignment
+        """
+        builder = InlineKeyboardBuilder()
+
+        for base, quote in self._currency_pairs:
+            # Show current manager if available
+            manager_info = "Не назначен"  # Default
+            if self.settings:
+                pair_string = f"{base}/{quote}"
+                manager = self.settings.get_manager_for_pair(pair_string)
+                if manager:
+                    manager_info = f"ID: {manager.user_id}"
+                elif self.settings.default_manager_id:
+                    manager_info = f"По умолчанию: {self.settings.default_manager_id}"
+
+            builder.button(
+                text=f"{base}/{quote} ({manager_info})",
+                callback_data=f"manager:{base}:{quote}",
+            )
+
+        # 2-column layout
+        builder.adjust(2)
+
+        return builder.as_markup()
+
     @staticmethod
     def parse_currency_callback(callback_data: str) -> tuple[str, str, str] | None:
         """Parse currency callback data.

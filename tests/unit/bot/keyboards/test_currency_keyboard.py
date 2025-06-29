@@ -9,7 +9,7 @@ from src.bot.keyboards.currency_keyboard import (
     get_admin_keyboard,
     parse_callback,
 )
-from src.config.models import Settings, CurrencyPair
+from src.config.models import Settings, CurrencyPair, ManagerConfig
 
 
 class TestCurrencyKeyboard:
@@ -162,6 +162,100 @@ class TestCurrencyKeyboard:
         # Check custom markup rate
         first_button = markup.inline_keyboard[0][0]
         assert "(3.5%)" in first_button.text
+
+    def test_create_manager_selection_keyboard_without_settings(self):
+        """Test manager selection keyboard without settings."""
+        keyboard = CurrencyKeyboard()
+        markup = keyboard.create_manager_selection_keyboard()
+
+        # Should have 8 buttons for currency pairs
+        total_buttons = sum(len(row) for row in markup.inline_keyboard)
+        assert total_buttons == 8
+
+        # Check default manager status
+        first_button = markup.inline_keyboard[0][0]
+        assert "RUB/ZAR (Не назначен)" in first_button.text
+        assert first_button.callback_data == "manager:RUB:ZAR"
+
+    def test_create_manager_selection_keyboard_with_managers(self):
+        """Test manager selection keyboard with assigned managers."""
+        # Create mock settings with managers
+        settings = Mock(spec=Settings)
+        settings.currency_pairs = {}
+        settings.get_active_currency_pairs.return_value = []
+        settings.default_manager_id = 999999999
+
+        # Mock manager for specific pair
+        manager = Mock()
+        manager.user_id = 123456789
+        settings.get_manager_for_pair.return_value = manager
+
+        keyboard = CurrencyKeyboard(settings)
+        markup = keyboard.create_manager_selection_keyboard()
+
+        # Check manager ID display
+        first_button = markup.inline_keyboard[0][0]
+        assert "(ID: 123456789)" in first_button.text
+
+    def test_create_manager_selection_keyboard_with_default_manager(self):
+        """Test manager selection keyboard with default manager only."""
+        # Create mock settings with default manager
+        settings = Mock(spec=Settings)
+        settings.currency_pairs = {}
+        settings.get_active_currency_pairs.return_value = []
+        settings.default_manager_id = 999999999
+
+        # No specific manager for pair
+        settings.get_manager_for_pair.return_value = None
+
+        keyboard = CurrencyKeyboard(settings)
+        markup = keyboard.create_manager_selection_keyboard()
+
+        # Check default manager display
+        first_button = markup.inline_keyboard[0][0]
+        assert "(По умолчанию: 999999999)" in first_button.text
+
+    def test_create_manager_selection_keyboard_no_managers(self):
+        """Test manager selection keyboard with no managers."""
+        # Create mock settings without managers
+        settings = Mock(spec=Settings)
+        settings.currency_pairs = {}
+        settings.get_active_currency_pairs.return_value = []
+        settings.default_manager_id = None
+        settings.get_manager_for_pair.return_value = None
+
+        keyboard = CurrencyKeyboard(settings)
+        markup = keyboard.create_manager_selection_keyboard()
+
+        # Check unassigned status
+        first_button = markup.inline_keyboard[0][0]
+        assert "(Не назначен)" in first_button.text
+
+    def test_manager_selection_keyboard_callback_format(self):
+        """Test manager selection keyboard callback data format."""
+        keyboard = CurrencyKeyboard()
+        markup = keyboard.create_manager_selection_keyboard()
+
+        # Check callback data format
+        for row in markup.inline_keyboard:
+            for button in row:
+                assert button.callback_data.startswith("manager:")
+                # Should be in format "manager:BASE:QUOTE"
+                parts = button.callback_data.split(":")
+                assert len(parts) == 3
+                assert parts[0] == "manager"
+
+    def test_manager_selection_keyboard_layout(self):
+        """Test manager selection keyboard layout."""
+        keyboard = CurrencyKeyboard()
+        markup = keyboard.create_manager_selection_keyboard()
+
+        # Check 2-column layout (mobile optimization)
+        for row in markup.inline_keyboard:
+            assert len(row) <= 2, "Row has more than 2 buttons"
+
+        # Should have 4 rows (8 buttons ÷ 2 columns)
+        assert len(markup.inline_keyboard) == 4
 
     def test_parse_currency_callback_valid(self):
         """Test parsing valid currency callback data."""
@@ -394,3 +488,33 @@ class TestKeyboardIntegration:
         callback_data_list = [btn.callback_data for btn in management_buttons]
         assert "admin:add_pair" in callback_data_list
         assert "admin:refresh_pairs" in callback_data_list
+
+    def test_manager_keyboard_integration(self):
+        """Test manager keyboard integration with other keyboards."""
+        keyboard = CurrencyKeyboard()
+
+        rate_markup = keyboard.create_rate_selection_keyboard()
+        manager_markup = keyboard.create_manager_selection_keyboard()
+
+        # Both should have same number of currency buttons
+        rate_buttons = sum(len(row) for row in rate_markup.inline_keyboard)
+        manager_buttons = sum(len(row) for row in manager_markup.inline_keyboard)
+
+        assert rate_buttons == manager_buttons == 8
+
+    def test_manager_callback_parsing_roundtrip(self):
+        """Test manager callback data creation and parsing roundtrip."""
+        keyboard = CurrencyKeyboard()
+
+        # Test all default currency pairs
+        for base, quote in keyboard._currency_pairs:
+            # Create manager callback data
+            callback_data = f"manager:{base}:{quote}"
+
+            # Parse it back
+            parsed = CurrencyKeyboard.parse_currency_callback(callback_data)
+
+            assert parsed is not None
+            assert parsed[0] == "manager"
+            assert parsed[1] == base
+            assert parsed[2] == quote
