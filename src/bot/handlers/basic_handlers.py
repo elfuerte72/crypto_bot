@@ -9,16 +9,21 @@ from aiogram.types import Message
 
 from config.settings import Settings
 
-# Create router for basic handlers
-basic_router = Router(name="basic_handlers")
 
+def create_basic_router() -> Router:
+    """Create and configure basic handlers router.
 
-@basic_router.message(Command("start"))
-async def cmd_start(message: Message, settings: Settings) -> None:
-    """Handle /start command - welcome message."""
-    user_name = message.from_user.first_name if message.from_user else "друг"
+    Returns:
+        Configured router with basic handlers
+    """
+    router = Router(name="basic_handlers")
 
-    welcome_text = f"""
+    @router.message(Command("start"))
+    async def cmd_start(message: Message, settings: Settings) -> None:
+        """Handle /start command - welcome message."""
+        user_name = message.from_user.first_name if message.from_user else "друг"
+
+        welcome_text = f"""
 🚀 <b>Добро пожаловать в Crypto Bot, {user_name}!</b>
 
 💱 Я помогу вам получать актуальные курсы валют и рассчитывать суммы для обмена.
@@ -32,15 +37,14 @@ async def cmd_start(message: Message, settings: Settings) -> None:
 {_format_supported_pairs(settings)}
 
 Выберите команду из меню или введите её вручную! 👆
-    """.strip()
+        """.strip()
 
-    await message.answer(welcome_text)
+        await message.answer(welcome_text)
 
-
-@basic_router.message(Command("help"))
-async def cmd_help(message: Message, settings: Settings) -> None:
-    """Handle /help command - show help information."""
-    help_text = f"""
+    @router.message(Command("help"))
+    async def cmd_help(message: Message, settings: Settings) -> None:
+        """Handle /help command - show help information."""
+        help_text = f"""
 ❓ <b>Справка по командам</b>
 
 <b>💱 /rate</b> - Получить курс валютной пары
@@ -65,9 +69,11 @@ async def cmd_help(message: Message, settings: Settings) -> None:
 • Все расчеты производятся с высокой точностью
 
 Если у вас есть вопросы, обратитесь к администратору.
-    """.strip()
+        """.strip()
 
-    await message.answer(help_text)
+        await message.answer(help_text)
+
+    return router
 
 
 def _format_supported_pairs(settings: Settings) -> str:

@@ -13,7 +13,13 @@ import structlog
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
 
-from bot.handlers import admin_router, basic_router, calc_router, rate_router
+from bot.handlers import (
+    create_basic_router,
+    create_rate_router,
+)
+
+# Временно отключены пока исправляем отступы:
+# from bot.handlers import create_admin_router, create_calc_router
 from config.settings import Settings, get_settings
 from services.cache_service import CacheService
 from services.calculation_service import CalculationService
@@ -158,11 +164,12 @@ class ServiceContainer:
         self._bot = Bot(token=self.settings.telegram.token)
         self._dispatcher = Dispatcher(storage=self._storage)
 
-        # Register routers
-        self._dispatcher.include_router(basic_router)
-        self._dispatcher.include_router(rate_router)
-        self._dispatcher.include_router(calc_router)
-        self._dispatcher.include_router(admin_router)
+        # Register routers (create new instances each time)
+        self._dispatcher.include_router(create_basic_router())
+        self._dispatcher.include_router(create_rate_router())
+        # Временно отключены пока исправляем отступы:
+        # self._dispatcher.include_router(create_calc_router())
+        # self._dispatcher.include_router(create_admin_router())
 
         # Setup middleware
         await self._setup_middleware()

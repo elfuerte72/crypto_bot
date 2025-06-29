@@ -25,8 +25,13 @@ from services.stats_service import StatsService
 from services.cache_service import CacheService
 
 
-# Create router for admin handlers
-admin_router = Router(name="admin_handlers")
+def create_admin_router() -> Router:
+    """Create and configure admin handlers router.
+
+    Returns:
+        Configured router with admin handlers
+    """
+    router = Router(name="admin_handlers")
 
 
 class AdminStates(StatesGroup):
@@ -446,8 +451,8 @@ async def check_admin_access(
     return True
 
 
-@admin_router.message(Command("set_markup"))
-async def cmd_set_markup(message: Message, settings: Settings) -> None:
+    @router.message(Command("set_markup"))
+    async def cmd_set_markup(message: Message, settings: Settings) -> None:
     """Handle /set_markup command - show currency pairs for markup management.
 
     Args:
@@ -484,10 +489,10 @@ async def cmd_set_markup(message: Message, settings: Settings) -> None:
         print(f"Error in cmd_set_markup: {e}")
 
 
-@admin_router.callback_query(F.data.startswith("markup:"))
-async def handle_markup_selection(
-    callback: CallbackQuery, settings: Settings, state: FSMContext
-) -> None:
+    @router.callback_query(F.data.startswith("markup:"))
+    async def handle_markup_selection(
+        callback: CallbackQuery, settings: Settings, state: FSMContext
+    ) -> None:
     """Handle currency pair selection for markup editing.
 
     Args:
@@ -547,10 +552,10 @@ async def handle_markup_selection(
         print(f"Error in handle_markup_selection: {e}")
 
 
-@admin_router.message(AdminStates.waiting_for_markup_value)
-async def handle_markup_value_input(
-    message: Message, settings: Settings, state: FSMContext
-) -> None:
+    @router.message(AdminStates.waiting_for_markup_value)
+    async def handle_markup_value_input(
+        message: Message, settings: Settings, state: FSMContext
+    ) -> None:
     """Handle markup value input from admin.
 
     Args:
@@ -655,10 +660,10 @@ async def handle_markup_value_input(
         print(f"Error in handle_markup_value_input: {e}")
 
 
-@admin_router.callback_query(F.data == "back_to_markup_selection")
-async def handle_back_to_markup_selection(
-    callback: CallbackQuery, settings: Settings, state: FSMContext
-) -> None:
+    @router.callback_query(F.data == "back_to_markup_selection")
+    async def handle_back_to_markup_selection(
+        callback: CallbackQuery, settings: Settings, state: FSMContext
+    ) -> None:
     """Handle back button to return to markup selection.
 
     Args:
@@ -697,8 +702,8 @@ async def handle_back_to_markup_selection(
         print(f"Error in handle_back_to_markup_selection: {e}")
 
 
-@admin_router.message(Command("set_manager"))
-async def cmd_set_manager(message: Message, settings: Settings) -> None:
+    @router.message(Command("set_manager"))
+    async def cmd_set_manager(message: Message, settings: Settings) -> None:
     """Handle /set_manager command - show currency pairs for manager assignment.
 
     Args:
@@ -735,10 +740,10 @@ async def cmd_set_manager(message: Message, settings: Settings) -> None:
         print(f"Error in cmd_set_manager: {e}")
 
 
-@admin_router.callback_query(F.data.startswith("manager:"))
-async def handle_manager_selection(
-    callback: CallbackQuery, settings: Settings, state: FSMContext
-) -> None:
+    @router.callback_query(F.data.startswith("manager:"))
+    async def handle_manager_selection(
+        callback: CallbackQuery, settings: Settings, state: FSMContext
+    ) -> None:
     """Handle currency pair selection for manager assignment.
 
     Args:
@@ -803,10 +808,10 @@ async def handle_manager_selection(
         print(f"Error in handle_manager_selection: {e}")
 
 
-@admin_router.message(AdminStates.waiting_for_manager_id)
-async def handle_manager_id_input(
-    message: Message, settings: Settings, state: FSMContext
-) -> None:
+    @router.message(AdminStates.waiting_for_manager_id)
+    async def handle_manager_id_input(
+        message: Message, settings: Settings, state: FSMContext
+    ) -> None:
     """Handle manager ID input from admin.
 
     Args:
@@ -917,10 +922,10 @@ async def handle_manager_id_input(
         print(f"Error in handle_manager_id_input: {e}")
 
 
-@admin_router.callback_query(F.data == "back_to_manager_selection")
-async def handle_back_to_manager_selection(
-    callback: CallbackQuery, settings: Settings, state: FSMContext
-) -> None:
+    @router.callback_query(F.data == "back_to_manager_selection")
+    async def handle_back_to_manager_selection(
+        callback: CallbackQuery, settings: Settings, state: FSMContext
+    ) -> None:
     """Handle back button to return to manager selection.
 
     Args:
@@ -959,8 +964,8 @@ async def handle_back_to_manager_selection(
         print(f"Error in handle_back_to_manager_selection: {e}")
 
 
-@admin_router.message(Command("stats"))
-async def cmd_stats(message: Message, settings: Settings) -> None:
+    @router.message(Command("stats"))
+    async def cmd_stats(message: Message, settings: Settings) -> None:
     """Handle /stats command - show bot usage statistics.
 
     Args:
@@ -1014,8 +1019,8 @@ async def cmd_stats(message: Message, settings: Settings) -> None:
         print(f"Error in cmd_stats: {e}")
 
 
-@admin_router.callback_query(F.data == "refresh_stats")
-async def handle_refresh_stats(callback: CallbackQuery, settings: Settings) -> None:
+    @router.callback_query(F.data == "refresh_stats")
+    async def handle_refresh_stats(callback: CallbackQuery, settings: Settings) -> None:
     """Handle refresh stats button.
 
     Args:
@@ -1067,8 +1072,8 @@ async def handle_refresh_stats(callback: CallbackQuery, settings: Settings) -> N
         print(f"Error in handle_refresh_stats: {e}")
 
 
-@admin_router.callback_query(F.data == "export_stats")
-async def handle_export_stats(callback: CallbackQuery, settings: Settings) -> None:
+    @router.callback_query(F.data == "export_stats")
+    async def handle_export_stats(callback: CallbackQuery, settings: Settings) -> None:
     """Handle export stats button.
 
     Args:
@@ -1129,10 +1134,10 @@ async def handle_export_stats(callback: CallbackQuery, settings: Settings) -> No
         print(f"Error in handle_export_stats: {e}")
 
 
-@admin_router.callback_query(F.data == "clear_stats_confirm")
-async def handle_clear_stats_confirm(
-    callback: CallbackQuery, settings: Settings
-) -> None:
+    @router.callback_query(F.data == "clear_stats_confirm")
+    async def handle_clear_stats_confirm(
+        callback: CallbackQuery, settings: Settings
+    ) -> None:
     """Handle clear stats confirmation.
 
     Args:
@@ -1181,10 +1186,10 @@ async def handle_clear_stats_confirm(
         print(f"Error in handle_clear_stats_confirm: {e}")
 
 
-@admin_router.callback_query(F.data == "clear_stats_execute")
-async def handle_clear_stats_execute(
-    callback: CallbackQuery, settings: Settings
-) -> None:
+    @router.callback_query(F.data == "clear_stats_execute")
+    async def handle_clear_stats_execute(
+        callback: CallbackQuery, settings: Settings
+    ) -> None:
     """Handle clear stats execution.
 
     Args:
@@ -1226,10 +1231,10 @@ async def handle_clear_stats_execute(
         print(f"Error in handle_clear_stats_execute: {e}")
 
 
-@admin_router.callback_query(F.data == "clear_stats_cancel")
-async def handle_clear_stats_cancel(
-    callback: CallbackQuery, settings: Settings
-) -> None:
+    @router.callback_query(F.data == "clear_stats_cancel")
+    async def handle_clear_stats_cancel(
+        callback: CallbackQuery, settings: Settings
+    ) -> None:
     """Handle clear stats cancellation.
 
     Args:
@@ -1280,10 +1285,12 @@ async def handle_clear_stats_cancel(
         await callback.answer("❌ Произошла ошибка", show_alert=True)
         print(f"Error in handle_clear_stats_cancel: {e}")
 
+    return router
+
 
 # Export router for inclusion in main dispatcher
 __all__ = [
-    "admin_router",
+    "create_admin_router",
     "AdminService",
     "get_admin_service",
     "AdminStates",

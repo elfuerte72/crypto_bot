@@ -47,8 +47,13 @@ from services.rapira_client import (
 
 logger = logging.getLogger(__name__)
 
-# Create router for calc handlers
-calc_router = Router(name="calc_handlers")
+def create_calc_router() -> Router:
+    """Create and configure calc handlers router.
+
+    Returns:
+        Configured router with calc handlers
+    """
+    router = Router(name="calc_handlers")
 
 
 class CalcService:
@@ -237,55 +242,55 @@ def get_calc_service(settings: Settings) -> CalcService:
     return _calc_service
 
 
-@calc_router.message(Command("calc"))
-async def cmd_calc(message: Message, state: FSMContext, settings: Settings) -> None:
-    """Handle /calc command - start calculation flow.
+    @router.message(Command("calc"))
+    async def cmd_calc(message: Message, state: FSMContext, settings: Settings) -> None:
+        """Handle /calc command - start calculation flow.
 
-    Args:
-        message: Incoming message
-        state: FSM context
-        settings: Application settings
-    """
-    try:
-        # Clear any existing state
-        await state.clear()
+        Args:
+            message: Incoming message
+            state: FSM context
+            settings: Application settings
+        """
+        try:
+            # Clear any existing state
+            await state.clear()
 
-        # Store user information
-        await state.update_data(
-            {
-                CalcData.USER_ID: message.from_user.id,
-                CalcData.USERNAME: message.from_user.username or "Unknown",
-                CalcData.MESSAGE_ID: message.message_id,
-            }
-        )
+            # Store user information
+            await state.update_data(
+                {
+                    CalcData.USER_ID: message.from_user.id,
+                    CalcData.USERNAME: message.from_user.username or "Unknown",
+                    CalcData.MESSAGE_ID: message.message_id,
+                }
+            )
 
-        # Create currency selection keyboard
-        keyboard = get_calc_keyboard(settings)
+            # Create currency selection keyboard
+            keyboard = get_calc_keyboard(settings)
 
-        # Send selection message
-        sent_message = await message.answer(
-            "🧮 <b>Калькулятор обмена</b>\n\n" "Выберите валютную пару для расчета:",
-            reply_markup=keyboard,
-            parse_mode="HTML",
-        )
+            # Send selection message
+            sent_message = await message.answer(
+                "🧮 <b>Калькулятор обмена</b>\n\n" "Выберите валютную пару для расчета:",
+                reply_markup=keyboard,
+                parse_mode="HTML",
+            )
 
-        # Update message ID and set state
-        await state.update_data({CalcData.MESSAGE_ID: sent_message.message_id})
-        await state.set_state(CalcStates.selecting_pair)
+            # Update message ID and set state
+            await state.update_data({CalcData.MESSAGE_ID: sent_message.message_id})
+            await state.set_state(CalcStates.selecting_pair)
 
-    except Exception as e:
-        logger.error(f"Error in cmd_calc: {e}")
-        await message.answer(
-            "❌ Произошла ошибка при запуске калькулятора. "
-            "Попробуйте позже или обратитесь к администратору.",
-            parse_mode="HTML",
-        )
+        except Exception as e:
+            logger.error(f"Error in cmd_calc: {e}")
+            await message.answer(
+                "❌ Произошла ошибка при запуске калькулятора. "
+                "Попробуйте позже или обратитесь к администратору.",
+                parse_mode="HTML",
+            )
 
 
-@calc_router.callback_query(CalcStates.selecting_pair, F.data.startswith("currency:"))
-async def handle_pair_selection(
-    callback: CallbackQuery, state: FSMContext, settings: Settings
-) -> None:
+    @router.callback_query(CalcStates.selecting_pair, F.data.startswith("currency:"))
+    async def handle_pair_selection(
+        callback: CallbackQuery, state: FSMContext, settings: Settings
+    ) -> None:
     """Handle currency pair selection for calculation.
 
     Args:
@@ -335,10 +340,10 @@ async def handle_pair_selection(
         await callback.answer("❌ Произошла ошибка", show_alert=True)
 
 
-@calc_router.message(CalcStates.entering_amount)
-async def handle_amount_input(
-    message: Message, state: FSMContext, settings: Settings
-) -> None:
+    @router.message(CalcStates.entering_amount)
+    async def handle_amount_input(
+        message: Message, state: FSMContext, settings: Settings
+    ) -> None:
     """Handle amount input for calculation.
 
     Args:
@@ -459,12 +464,12 @@ async def handle_amount_input(
         )
 
 
-@calc_router.callback_query(
-    CalcStates.confirming_calculation, F.data == "confirm_calculation"
-)
-async def handle_calculation_confirmation(
-    callback: CallbackQuery, state: FSMContext, settings: Settings
-) -> None:
+    @router.callback_query(
+        CalcStates.confirming_calculation, F.data == "confirm_calculation"
+    )
+    async def handle_calculation_confirmation(
+        callback: CallbackQuery, state: FSMContext, settings: Settings
+    ) -> None:
     """Handle calculation confirmation.
 
     Args:
@@ -530,12 +535,12 @@ async def handle_calculation_confirmation(
         await callback.answer("❌ Ошибка при подтверждении", show_alert=True)
 
 
-@calc_router.callback_query(
-    CalcStates.confirming_calculation, F.data == "cancel_calculation"
-)
-async def handle_calculation_cancellation(
-    callback: CallbackQuery, state: FSMContext, settings: Settings
-) -> None:
+    @router.callback_query(
+        CalcStates.confirming_calculation, F.data == "cancel_calculation"
+    )
+    async def handle_calculation_cancellation(
+        callback: CallbackQuery, state: FSMContext, settings: Settings
+    ) -> None:
     """Handle calculation cancellation.
 
     Args:
@@ -559,10 +564,10 @@ async def handle_calculation_cancellation(
         await callback.answer("❌ Произошла ошибка", show_alert=True)
 
 
-@calc_router.callback_query(F.data == "back_to_pair_selection")
-async def handle_back_to_pair_selection(
-    callback: CallbackQuery, state: FSMContext, settings: Settings
-) -> None:
+    @router.callback_query(F.data == "back_to_pair_selection")
+    async def handle_back_to_pair_selection(
+        callback: CallbackQuery, state: FSMContext, settings: Settings
+    ) -> None:
     """Handle back button to return to pair selection.
 
     Args:
@@ -589,10 +594,10 @@ async def handle_back_to_pair_selection(
         await callback.answer("❌ Произошла ошибка", show_alert=True)
 
 
-@calc_router.callback_query(F.data == "new_calculation")
-async def handle_new_calculation(
-    callback: CallbackQuery, state: FSMContext, settings: Settings
-) -> None:
+    @router.callback_query(F.data == "new_calculation")
+    async def handle_new_calculation(
+        callback: CallbackQuery, state: FSMContext, settings: Settings
+    ) -> None:
     """Handle new calculation request.
 
     Args:
@@ -662,6 +667,8 @@ async def format_calculation_result(
 
     return message
 
+    return router
+
 
 # Export router for inclusion in main dispatcher
-__all__ = ["calc_router", "CalcService", "get_calc_service"]
+__all__ = ["create_calc_router", "CalcService", "get_calc_service"]

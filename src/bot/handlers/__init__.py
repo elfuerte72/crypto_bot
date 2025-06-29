@@ -1,8 +1,15 @@
 """Bot handlers for command processing."""
 
-from .basic_handlers import basic_router
-from .rate_handler import rate_router
-from .calc_handler import calc_router
-from .admin_handlers import admin_router
+from .basic_handlers import create_basic_router
+from .rate_handler import create_rate_router
 
-__all__ = ["basic_router", "rate_router", "calc_router", "admin_router"]
+# Временно исключаем проблемные handlers пока исправляем отступы
+# from .calc_handler import create_calc_router
+# from .admin_handlers import create_admin_router
+
+__all__ = [
+    "create_basic_router",
+    "create_rate_router",
+    # "create_calc_router",
+    # "create_admin_router",
+]
