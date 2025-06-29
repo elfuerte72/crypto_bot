@@ -275,6 +275,351 @@ async def format_calculation_result(
     return message
 
 
+async def cmd_calc(message: Message, state: FSMContext, settings: Settings) -> None:
+    """Handle /calc command - start calculation flow.
+
+    Args:
+        message: Incoming message
+        state: FSM context
+        settings: Application settings
+    """
+    try:
+        # Clear any existing state
+        await state.clear()
+
+        # Store user information
+        await state.update_data(
+            {
+                CalcData.USER_ID: message.from_user.id,
+                CalcData.USERNAME: message.from_user.username or "Unknown",
+                CalcData.MESSAGE_ID: message.message_id,
+            }
+        )
+
+        # Create currency selection keyboard
+        keyboard = get_calc_keyboard(settings)
+
+        # Send selection message
+        sent_message = await message.answer(
+            "🧮 <b>Калькулятор обмена</b>\n\n" "Выберите валютную пару для расчета:",
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+
+        # Update message ID and set state
+        await state.update_data({CalcData.MESSAGE_ID: sent_message.message_id})
+        await state.set_state(CalcStates.selecting_pair)
+
+    except Exception as e:
+        logger.error(f"Error in cmd_calc: {e}")
+        await message.answer(
+            "❌ Произошла ошибка при запуске калькулятора. "
+            "Попробуйте позже или обратитесь к администратору.",
+            parse_mode="HTML",
+        )
+
+
+async def handle_pair_selection(
+    callback: CallbackQuery, state: FSMContext, settings: Settings
+) -> None:
+    """Handle currency pair selection.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        settings: Application settings
+    """
+    try:
+        await callback.answer()
+
+        # Parse callback data
+        callback_data = parse_callback(callback.data)
+        if not callback_data or callback_data.action != "currency":
+            await callback.message.edit_text(
+                "❌ Неверные данные. Попробуйте еще раз.", parse_mode="HTML"
+            )
+            return
+
+        base_currency = callback_data.base_currency
+        quote_currency = callback_data.quote_currency
+
+        # Store pair selection
+        await state.update_data(
+            {
+                CalcData.BASE_CURRENCY: base_currency,
+                CalcData.QUOTE_CURRENCY: quote_currency,
+            }
+        )
+
+        # Request amount input
+        await callback.message.edit_text(
+            f"💰 <b>Ввод суммы</b>\n\n"
+            f"Валютная пара: <code>{base_currency} → {quote_currency}</code>\n\n"
+            f"Введите сумму в {base_currency} для расчета:",
+            parse_mode="HTML",
+        )
+
+        await state.set_state(CalcStates.entering_amount)
+
+    except Exception as e:
+        logger.error(f"Error in handle_pair_selection: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при выборе валютной пары.", parse_mode="HTML"
+        )
+
+
+async def handle_amount_input(
+    message: Message, state: FSMContext, settings: Settings
+) -> None:
+    """Handle amount input.
+
+    Args:
+        message: Incoming message
+        state: FSM context
+        settings: Application settings
+    """
+    try:
+        # Parse amount
+        try:
+            amount = Decimal(message.text.replace(",", "."))
+            if amount <= 0:
+                raise ValueError("Amount must be positive")
+        except (ValueError, InvalidOperation):
+            await message.answer(
+                "❌ Неверный формат суммы. Введите положительное число:",
+                parse_mode="HTML",
+            )
+            return
+
+        # Get state data
+        data = await state.get_data()
+        base_currency = data.get(CalcData.BASE_CURRENCY)
+        quote_currency = data.get(CalcData.QUOTE_CURRENCY)
+
+        if not base_currency or not quote_currency:
+            await message.answer(
+                "❌ Ошибка: не выбрана валютная пара. Начните сначала с /calc",
+                parse_mode="HTML",
+            )
+            await state.clear()
+            return
+
+        # Get calc service and rate data
+        calc_service = get_calc_service(settings)
+        rate_data = await calc_service.get_rate_for_pair(base_currency, quote_currency)
+
+        if not rate_data:
+            await message.answer(
+                f"❌ Курс для пары {base_currency}/{quote_currency} не найден.",
+                parse_mode="HTML",
+            )
+            return
+
+        # Calculate exchange
+        calculation_result = await calc_service.calculate_exchange(
+            base_currency, quote_currency, amount, rate_data
+        )
+
+        # Store calculation result
+        await state.update_data({CalcData.CALCULATION_RESULT: calculation_result})
+
+        # Format and send result
+        result_message = await format_calculation_result(calculation_result)
+
+        # Add confirmation keyboard
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="✅ Подтвердить", callback_data="calc_confirm"
+                    ),
+                    InlineKeyboardButton(
+                        text="❌ Отменить", callback_data="calc_cancel"
+                    ),
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="🔙 Назад", callback_data="calc_back_to_pairs"
+                    )
+                ],
+            ]
+        )
+
+        await message.answer(result_message, reply_markup=keyboard, parse_mode="HTML")
+        await state.set_state(CalcStates.confirming_calculation)
+
+    except Exception as e:
+        logger.error(f"Error in handle_amount_input: {e}")
+        await message.answer(
+            "❌ Произошла ошибка при расчете. Попробуйте еще раз.", parse_mode="HTML"
+        )
+
+
+async def handle_calculation_confirmation(
+    callback: CallbackQuery, state: FSMContext, settings: Settings
+) -> None:
+    """Handle calculation confirmation.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        settings: Application settings
+    """
+    try:
+        await callback.answer()
+
+        # Get state data
+        data = await state.get_data()
+        calculation_result = data.get(CalcData.CALCULATION_RESULT)
+
+        if not calculation_result:
+            await callback.message.edit_text(
+                "❌ Ошибка: данные расчета не найдены.", parse_mode="HTML"
+            )
+            await state.clear()
+            return
+
+        # Send manager notification
+        calc_service = get_calc_service(settings)
+        user_info = {
+            "user_id": data.get(CalcData.USER_ID),
+            "username": data.get(CalcData.USERNAME),
+            "full_name": callback.from_user.full_name,
+        }
+
+        notification_sent = await calc_service.send_manager_notification(
+            calculation_result, user_info, callback.bot
+        )
+
+        # Format confirmed result
+        result_message = await format_calculation_result(
+            calculation_result, confirmed=True
+        )
+
+        if notification_sent:
+            result_message += "\n\n✅ <b>Заявка отправлена менеджеру!</b>"
+        else:
+            result_message += (
+                "\n\n⚠️ <b>Заявка создана, но уведомление менеджеру не отправлено.</b>"
+            )
+
+        # Add new calculation button
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🧮 Новый расчет", callback_data="calc_new")]
+            ]
+        )
+
+        await callback.message.edit_text(
+            result_message, reply_markup=keyboard, parse_mode="HTML"
+        )
+        await state.clear()
+
+    except Exception as e:
+        logger.error(f"Error in handle_calculation_confirmation: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при подтверждении расчета.", parse_mode="HTML"
+        )
+
+
+async def handle_calculation_cancellation(
+    callback: CallbackQuery, state: FSMContext, settings: Settings
+) -> None:
+    """Handle calculation cancellation.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        settings: Application settings
+    """
+    try:
+        await callback.answer()
+
+        await callback.message.edit_text(
+            "❌ <b>Расчет отменен</b>\n\nИспользуйте /calc для нового расчета.",
+            parse_mode="HTML",
+        )
+
+        await state.clear()
+
+    except Exception as e:
+        logger.error(f"Error in handle_calculation_cancellation: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при отмене расчета.", parse_mode="HTML"
+        )
+
+
+async def handle_back_to_pair_selection(
+    callback: CallbackQuery, state: FSMContext, settings: Settings
+) -> None:
+    """Handle back to pair selection.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        settings: Application settings
+    """
+    try:
+        await callback.answer()
+
+        # Create currency selection keyboard
+        keyboard = get_calc_keyboard(settings)
+
+        # Send selection message
+        await callback.message.edit_text(
+            "🧮 <b>Калькулятор обмена</b>\n\n" "Выберите валютную пару для расчета:",
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+
+        await state.set_state(CalcStates.selecting_pair)
+
+    except Exception as e:
+        logger.error(f"Error in handle_back_to_pair_selection: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при возврате к выбору пары.", parse_mode="HTML"
+        )
+
+
+async def handle_new_calculation(
+    callback: CallbackQuery, state: FSMContext, settings: Settings
+) -> None:
+    """Handle new calculation request.
+
+    Args:
+        callback: Callback query
+        state: FSM context
+        settings: Application settings
+    """
+    try:
+        await callback.answer()
+
+        # Clear state and start new calculation
+        await state.clear()
+
+        # Create currency selection keyboard
+        keyboard = get_calc_keyboard(settings)
+
+        # Send selection message
+        await callback.message.edit_text(
+            "🧮 <b>Калькулятор обмена</b>\n\n" "Выберите валютную пару для расчета:",
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+
+        await state.set_state(CalcStates.selecting_pair)
+
+    except Exception as e:
+        logger.error(f"Error in handle_new_calculation: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при создании нового расчета.", parse_mode="HTML"
+        )
+
+
 def create_calc_router() -> Router:
     """Create and configure calc handlers router.
 
@@ -283,52 +628,43 @@ def create_calc_router() -> Router:
     """
     router = Router(name="calc_handlers")
 
-    @router.message(Command("calc"))
-    async def cmd_calc(message: Message, state: FSMContext, settings: Settings) -> None:
-        """Handle /calc command - start calculation flow.
-
-        Args:
-            message: Incoming message
-            state: FSM context
-            settings: Application settings
-        """
-        try:
-            # Clear any existing state
-            await state.clear()
-
-            # Store user information
-            await state.update_data(
-                {
-                    CalcData.USER_ID: message.from_user.id,
-                    CalcData.USERNAME: message.from_user.username or "Unknown",
-                    CalcData.MESSAGE_ID: message.message_id,
-                }
-            )
-
-            # Create currency selection keyboard
-            keyboard = get_calc_keyboard(settings)
-
-            # Send selection message
-            sent_message = await message.answer(
-                "🧮 <b>Калькулятор обмена</b>\n\n" "Выберите валютную пару для расчета:",
-                reply_markup=keyboard,
-                parse_mode="HTML",
-            )
-
-            # Update message ID and set state
-            await state.update_data({CalcData.MESSAGE_ID: sent_message.message_id})
-            await state.set_state(CalcStates.selecting_pair)
-
-        except Exception as e:
-            logger.error(f"Error in cmd_calc: {e}")
-            await message.answer(
-                "❌ Произошла ошибка при запуске калькулятора. "
-                "Попробуйте позже или обратитесь к администратору.",
-                parse_mode="HTML",
-            )
+    # Register handlers
+    router.message.register(cmd_calc, Command("calc"))
+    router.callback_query.register(
+        handle_pair_selection, F.data.startswith("currency:"), CalcStates.selecting_pair
+    )
+    router.message.register(handle_amount_input, CalcStates.entering_amount)
+    router.callback_query.register(
+        handle_calculation_confirmation,
+        F.data == "calc_confirm",
+        CalcStates.confirming_calculation,
+    )
+    router.callback_query.register(
+        handle_calculation_cancellation,
+        F.data == "calc_cancel",
+        CalcStates.confirming_calculation,
+    )
+    router.callback_query.register(
+        handle_back_to_pair_selection,
+        F.data == "calc_back_to_pairs",
+        CalcStates.confirming_calculation,
+    )
+    router.callback_query.register(handle_new_calculation, F.data == "calc_new")
 
     return router
 
 
-# Export router for inclusion in main dispatcher
-__all__ = ["create_calc_router", "CalcService", "get_calc_service"]
+# Export all functions and classes
+__all__ = [
+    "create_calc_router",
+    "CalcService",
+    "get_calc_service",
+    "cmd_calc",
+    "handle_pair_selection",
+    "handle_amount_input",
+    "handle_calculation_confirmation",
+    "handle_calculation_cancellation",
+    "handle_back_to_pair_selection",
+    "handle_new_calculation",
+    "format_calculation_result",
+]

@@ -689,6 +689,269 @@ async def handle_back_to_markup_selection(
         print(f"Error in handle_back_to_markup_selection: {e}")
 
 
+async def cmd_set_manager(message: Message, settings: Settings) -> None:
+    """Handle /set_manager command - start manager assignment flow.
+
+    Args:
+        message: Incoming message
+        settings: Application settings
+    """
+    # Check admin access
+    if not await check_admin_access(message, settings):
+        return
+
+    try:
+        admin_service = get_admin_service(settings)
+
+        # Create manager selection keyboard
+        keyboard = CurrencyKeyboard(settings)
+        manager_keyboard = keyboard.create_manager_selection_keyboard()
+
+        # Format message with current manager info
+        managers_info = admin_service.format_managers_info_message()
+
+        await message.answer(
+            managers_info,
+            reply_markup=manager_keyboard,
+            parse_mode="HTML",
+        )
+
+    except Exception as e:
+        logger.error(f"Error in cmd_set_manager: {e}")
+        await message.answer(
+            "❌ Произошла ошибка при запуске настройки менеджеров. "
+            "Попробуйте позже или обратитесь к администратору.",
+            parse_mode="HTML",
+        )
+
+
+async def handle_manager_selection(
+    callback: CallbackQuery, settings: Settings, state: FSMContext
+) -> None:
+    """Handle manager selection for currency pair.
+
+    Args:
+        callback: Callback query with manager selection data
+        settings: Application settings
+        state: FSM context for storing data
+    """
+    # Check admin access
+    if not await check_admin_access(callback, settings):
+        await state.clear()
+        return
+
+    try:
+        # Parse callback data
+        parsed = parse_callback_data(callback.data)
+        if not parsed:
+            await callback.answer("❌ Неверный формат данных", show_alert=True)
+            return
+
+        action, base, quote = parsed
+
+        if action != "manager":
+            await callback.answer("❌ Неверное действие", show_alert=True)
+            return
+
+        pair_string = f"{base}/{quote}"
+        admin_service = get_admin_service(settings)
+        current_manager_id = admin_service.get_current_manager(pair_string)
+        current_manager_name = (
+            admin_service.get_manager_name(current_manager_id)
+            if current_manager_id
+            else "Не назначен"
+        )
+
+        # Store pair info in FSM data
+        await state.update_data(
+            pair_string=pair_string,
+            base_currency=base,
+            quote_currency=quote,
+            current_manager_id=current_manager_id,
+            current_manager_name=current_manager_name,
+        )
+
+        # Set state for waiting manager ID
+        await state.set_state(AdminStates.waiting_for_manager_id)
+
+        # Show manager input prompt
+        await callback.message.edit_text(
+            f"👤 <b>Назначение менеджера</b>\n\n"
+            f"Валютная пара: <b>{pair_string}</b>\n"
+            f"Текущий менеджер: <code>{current_manager_name}</code>\n"
+            f"ID: <code>{current_manager_id or 'Не назначен'}</code>\n\n"
+            f"📝 Введите ID нового менеджера:\n"
+            f"<i>Например: 123456789</i>\n\n"
+            f"💡 <i>Чтобы узнать ID пользователя, перешлите любое его сообщение боту @userinfobot</i>",
+            reply_markup=CurrencyKeyboard.create_back_keyboard(
+                "back_to_manager_selection"
+            ),
+            parse_mode="HTML",
+        )
+
+        await callback.answer()
+
+    except Exception as e:
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        logger.error(f"Error in handle_manager_selection: {e}")
+
+
+async def handle_manager_id_input(
+    message: Message, settings: Settings, state: FSMContext
+) -> None:
+    """Handle manager ID input from admin.
+
+    Args:
+        message: Message with manager ID
+        settings: Application settings
+        state: FSM context with stored data
+    """
+    # Check admin access
+    if not await check_admin_access(message, settings):
+        await state.clear()
+        return
+
+    try:
+        # Get stored data
+        data = await state.get_data()
+        pair_string = data.get("pair_string")
+        current_manager_id = data.get("current_manager_id")
+        current_manager_name = data.get("current_manager_name", "Не назначен")
+
+        if not pair_string:
+            await message.answer(
+                "❌ Ошибка: данные сессии потеряны. Начните заново с команды /set_manager",
+                parse_mode="HTML",
+            )
+            await state.clear()
+            return
+
+        # Validate and parse manager ID
+        manager_text = message.text.strip()
+
+        # Check for valid number format
+        if not re.match(r"^\d+$", manager_text):
+            await message.answer(
+                "❌ <b>Неверный формат</b>\n\n"
+                "ID менеджера должен содержать только цифры.\n"
+                "Пример: <code>123456789</code>",
+                parse_mode="HTML",
+            )
+            return
+
+        try:
+            manager_id = int(manager_text)
+        except ValueError:
+            await message.answer(
+                "❌ <b>Неверный формат ID</b>\n\n" "Введите корректный числовой ID.",
+                parse_mode="HTML",
+            )
+            return
+
+        # Validate ID range
+        if manager_id <= 0:
+            await message.answer(
+                "❌ <b>Неверный ID</b>\n\n"
+                "ID менеджера должен быть положительным числом.",
+                parse_mode="HTML",
+            )
+            return
+
+        # Get manager name (will be set to default if not found)
+        admin_service = get_admin_service(settings)
+        manager_name = admin_service.get_manager_name(manager_id)
+
+        # If it's an unknown manager, we'll create a new entry
+        if manager_name == "Неизвестный менеджер":
+            manager_name = f"Менеджер {manager_id}"
+
+        # Assign manager to pair
+        success = admin_service.assign_manager_to_pair(
+            pair_string, manager_id, manager_name
+        )
+
+        if not success:
+            await message.answer(
+                "❌ <b>Ошибка назначения</b>\n\n"
+                "Не удалось назначить менеджера. "
+                "Проверьте корректность данных и попробуйте еще раз.",
+                parse_mode="HTML",
+            )
+            return
+
+        # Format success message
+        success_message = admin_service.format_manager_change_message(
+            pair_string, current_manager_id, manager_id, manager_name
+        )
+
+        # Send confirmation
+        await message.answer(success_message, parse_mode="HTML")
+
+        # Show updated managers list
+        await asyncio.sleep(1)  # Small delay for better UX
+
+        keyboard = CurrencyKeyboard(settings)
+        manager_keyboard = keyboard.create_manager_selection_keyboard()
+
+        managers_info = admin_service.format_managers_info_message()
+        await message.answer(
+            managers_info, reply_markup=manager_keyboard, parse_mode="HTML"
+        )
+
+        # Clear FSM state
+        await state.clear()
+
+    except Exception as e:
+        await message.answer(
+            "❌ Произошла ошибка при назначении менеджера. "
+            "Попробуйте еще раз или обратитесь к разработчику.",
+            parse_mode="HTML",
+        )
+        await state.clear()
+        logger.error(f"Error in handle_manager_id_input: {e}")
+
+
+async def handle_back_to_manager_selection(
+    callback: CallbackQuery, settings: Settings, state: FSMContext
+) -> None:
+    """Handle back button to return to manager selection.
+
+    Args:
+        callback: Callback query
+        settings: Application settings
+        state: FSM context to clear
+    """
+    # Check admin access
+    if not await check_admin_access(callback, settings):
+        await state.clear()
+        return
+
+    try:
+        # Clear any FSM state
+        await state.clear()
+
+        admin_service = get_admin_service(settings)
+
+        # Create manager selection keyboard
+        keyboard = CurrencyKeyboard(settings)
+        manager_keyboard = keyboard.create_manager_selection_keyboard()
+
+        # Format message with current managers info
+        managers_info = admin_service.format_managers_info_message()
+
+        await callback.message.edit_text(
+            managers_info,
+            reply_markup=manager_keyboard,
+            parse_mode="HTML",
+        )
+
+        await callback.answer()
+
+    except Exception as e:
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        logger.error(f"Error in handle_back_to_manager_selection: {e}")
+
+
 def create_admin_router() -> Router:
     """Create and configure admin handlers router.
 
@@ -719,6 +982,28 @@ def create_admin_router() -> Router:
     ) -> None:
         await handle_back_to_markup_selection(callback, settings, state)
 
+    @router.message(Command("set_manager"))
+    async def handle_cmd_set_manager(message: Message, settings: Settings) -> None:
+        await cmd_set_manager(message, settings)
+
+    @router.callback_query(F.data.startswith("manager:"))
+    async def handle_manager_callback(
+        callback: CallbackQuery, settings: Settings, state: FSMContext
+    ) -> None:
+        await handle_manager_selection(callback, settings, state)
+
+    @router.message(AdminStates.waiting_for_manager_id)
+    async def handle_manager_input(
+        message: Message, settings: Settings, state: FSMContext
+    ) -> None:
+        await handle_manager_id_input(message, settings, state)
+
+    @router.callback_query(F.data == "back_to_manager_selection")
+    async def handle_back_manager_callback(
+        callback: CallbackQuery, settings: Settings, state: FSMContext
+    ) -> None:
+        await handle_back_to_manager_selection(callback, settings, state)
+
     return router
 
 
@@ -733,4 +1018,8 @@ __all__ = [
     "handle_markup_selection",
     "handle_markup_value_input",
     "handle_back_to_markup_selection",
+    "cmd_set_manager",
+    "handle_manager_selection",
+    "handle_manager_id_input",
+    "handle_back_to_manager_selection",
 ]
