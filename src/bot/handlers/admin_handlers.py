@@ -21,6 +21,8 @@ from bot.keyboards.currency_keyboard import (
     parse_callback,
 )
 from config.models import Settings
+from services.stats_service import StatsService
+from services.cache_service import CacheService
 
 
 # Create router for admin handlers
@@ -37,13 +39,15 @@ class AdminStates(StatesGroup):
 class AdminService:
     """Service for handling admin-related operations."""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, stats_service: StatsService | None = None):
         """Initialize admin service.
 
         Args:
             settings: Application settings
+            stats_service: Statistics service for /stats command
         """
         self.settings = settings
+        self.stats_service = stats_service
 
     def is_admin(self, user_id: int) -> bool:
         """Check if user is an administrator.
@@ -287,23 +291,129 @@ class AdminService:
 <i>Изменения вступят в силу немедленно</i>
         """.strip()
 
+    async def format_stats_message(self) -> str:
+        """Format statistics message for admin.
+
+        Returns:
+            Formatted statistics message
+        """
+        if not self.stats_service:
+            return "❌ <b>Статистика недоступна</b>\n\nСервис статистики не инициализирован."
+
+        try:
+            # Get comprehensive statistics
+            report = await self.stats_service.generate_summary_report()
+            system = report["system"]
+            top_users = report["top_users"]
+            currency_pairs = report["currency_pairs"]
+
+            message = "📊 <b>Статистика бота</b>\n\n"
+
+            # System statistics
+            message += "🖥 <b>Система</b>\n"
+            message += f"⏱ Время работы: <code>{system['uptime_days']} дней</code>\n"
+            message += f"👤 Всего пользователей: <code>{system['total_users']}</code>\n"
+            message += (
+                f"🔥 Активных сегодня: <code>{system['active_users_today']}</code>\n"
+            )
+            message += (
+                f"📅 Активных за неделю: <code>{system['active_users_week']}</code>\n\n"
+            )
+
+            # Transaction statistics
+            message += "💱 <b>Транзакции</b>\n"
+            message += (
+                f"📈 Всего транзакций: <code>{system['total_transactions']}</code>\n"
+            )
+            message += f"✅ Успешность: <code>{system['success_rate']}%</code>\n"
+            message += f"❌ Всего ошибок: <code>{system['total_errors']}</code>\n"
+            message += f"📊 Частота ошибок: <code>{system['error_rate']}%</code>\n\n"
+
+            # Performance statistics
+            message += "⚡ <b>Производительность</b>\n"
+            message += f"💾 Попадания в кеш: <code>{system['cache_hit_rate']}%</code>\n"
+            if system["most_popular_pair"]:
+                message += (
+                    f"🏆 Популярная пара: <code>{system['most_popular_pair']}</code>\n\n"
+                )
+            else:
+                message += "\n"
+
+            # Top users
+            if top_users:
+                message += "👑 <b>Топ пользователи</b>\n"
+                for i, user in enumerate(top_users[:5], 1):
+                    name = (
+                        user["full_name"]
+                        or user["username"]
+                        or f"User {user['user_id']}"
+                    )
+                    if user["username"]:
+                        name = f"@{user['username']}"
+                    message += (
+                        f"{i}. {name}: <code>{user['total_requests']}</code> запросов\n"
+                    )
+                message += "\n"
+
+            # Currency pairs statistics
+            if currency_pairs:
+                message += "💰 <b>Валютные пары</b>\n"
+                sorted_pairs = sorted(
+                    currency_pairs.items(),
+                    key=lambda x: x[1]["total_requests"],
+                    reverse=True,
+                )[:5]
+
+                for pair, stats in sorted_pairs:
+                    message += f"• <b>{pair}</b>: <code>{stats['total_requests']}</code> запросов, "
+                    message += f"<code>{stats['unique_users']}</code> пользователей\n"
+                message += "\n"
+
+            message += (
+                "<i>📤 Для экспорта детальной статистики используйте кнопку ниже</i>"
+            )
+            return message
+
+        except Exception as e:
+            return f"❌ <b>Ошибка загрузки статистики</b>\n\nПроизошла ошибка: {str(e)}"
+
+    async def export_stats_to_file(self, file_path: str) -> bool:
+        """Export statistics to file.
+
+        Args:
+            file_path: Path to export file
+
+        Returns:
+            True if export successful, False otherwise
+        """
+        if not self.stats_service:
+            return False
+
+        try:
+            return await self.stats_service.export_stats_to_file(file_path)
+        except Exception:
+            return False
+
 
 # Global admin service instance
 _admin_service: AdminService | None = None
 
 
-def get_admin_service(settings: Settings) -> AdminService:
+def get_admin_service(
+    settings: Settings, stats_service: StatsService | None = None
+) -> AdminService:
     """Get or create admin service instance.
 
     Args:
         settings: Application settings
+        stats_service: Statistics service for /stats command
 
     Returns:
         Admin service instance
     """
     global _admin_service
     if _admin_service is None:
-        _admin_service = AdminService(settings)
+        _admin_service = AdminService(settings, stats_service)
     return _admin_service
 
 
@@ -847,6 +957,328 @@ async def handle_back_to_manager_selection(
     except Exception as e:
         await callback.answer("❌ Произошла ошибка", show_alert=True)
         print(f"Error in handle_back_to_manager_selection: {e}")
+
+
+@admin_router.message(Command("stats"))
+async def cmd_stats(message: Message, settings: Settings) -> None:
+    """Handle /stats command - show bot usage statistics.
+
+    Args:
+        message: Incoming message
+        settings: Application settings
+    """
+    # Check admin access
+    if not await check_admin_access(message, settings):
+        return
+
+    try:
+        admin_service = get_admin_service(settings)
+
+        # Format statistics message
+        stats_message = await admin_service.format_stats_message()
+
+        # Create inline keyboard for export option
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="📤 Экспорт в файл", callback_data="export_stats"
+                    ),
+                    InlineKeyboardButton(
+                        text="🔄 Обновить", callback_data="refresh_stats"
+                    ),
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="🗑 Очистить статистику",
+                        callback_data="clear_stats_confirm",
+                    )
+                ],
+            ]
+        )
+
+        await message.answer(
+            stats_message,
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+
+    except Exception as e:
+        await message.answer(
+            "❌ Произошла ошибка при загрузке статистики. "
+            "Попробуйте позже или обратитесь к разработчику.",
+            parse_mode="HTML",
+        )
+        print(f"Error in cmd_stats: {e}")
+
+
+@admin_router.callback_query(F.data == "refresh_stats")
+async def handle_refresh_stats(callback: CallbackQuery, settings: Settings) -> None:
+    """Handle refresh stats button.
+
+    Args:
+        callback: Callback query
+        settings: Application settings
+    """
+    # Check admin access
+    if not await check_admin_access(callback, settings):
+        return
+
+    try:
+        admin_service = get_admin_service(settings)
+
+        # Format updated statistics message
+        stats_message = await admin_service.format_stats_message()
+
+        # Create inline keyboard for export option
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="📤 Экспорт в файл", callback_data="export_stats"
+                    ),
+                    InlineKeyboardButton(
+                        text="🔄 Обновить", callback_data="refresh_stats"
+                    ),
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="🗑 Очистить статистику",
+                        callback_data="clear_stats_confirm",
+                    )
+                ],
+            ]
+        )
+
+        await callback.message.edit_text(
+            stats_message,
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+
+        await callback.answer("✅ Статистика обновлена")
+
+    except Exception as e:
+        await callback.answer("❌ Ошибка обновления статистики", show_alert=True)
+        print(f"Error in handle_refresh_stats: {e}")
+
+
+@admin_router.callback_query(F.data == "export_stats")
+async def handle_export_stats(callback: CallbackQuery, settings: Settings) -> None:
+    """Handle export stats button.
+
+    Args:
+        callback: Callback query
+        settings: Application settings
+    """
+    # Check admin access
+    if not await check_admin_access(callback, settings):
+        return
+
+    try:
+        admin_service = get_admin_service(settings)
+
+        # Generate file path with timestamp
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_path = f"stats_export_{timestamp}.json"
+
+        # Export statistics to file
+        success = await admin_service.export_stats_to_file(file_path)
+
+        if success:
+            # Send file to admin
+            from aiogram.types import FSInputFile
+
+            try:
+                document = FSInputFile(
+                    file_path, filename=f"bot_statistics_{timestamp}.json"
+                )
+                await callback.message.answer_document(
+                    document=document,
+                    caption=f"📊 <b>Экспорт статистики</b>\n\n"
+                    f"📅 Дата: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}\n"
+                    f"📁 Файл: bot_statistics_{timestamp}.json\n\n"
+                    f"<i>Файл содержит детальную статистику использования бота</i>",
+                    parse_mode="HTML",
+                )
+
+                # Clean up file after sending
+                import os
+
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
+
+                await callback.answer("✅ Статистика экспортирована")
+            except Exception as send_error:
+                await callback.answer(
+                    f"❌ Ошибка отправки файла: {str(send_error)}", show_alert=True
+                )
+        else:
+            await callback.answer("❌ Ошибка экспорта статистики", show_alert=True)
+
+    except Exception as e:
+        await callback.answer("❌ Ошибка экспорта статистики", show_alert=True)
+        print(f"Error in handle_export_stats: {e}")
+
+
+@admin_router.callback_query(F.data == "clear_stats_confirm")
+async def handle_clear_stats_confirm(
+    callback: CallbackQuery, settings: Settings
+) -> None:
+    """Handle clear stats confirmation.
+
+    Args:
+        callback: Callback query
+        settings: Application settings
+    """
+    # Check admin access
+    if not await check_admin_access(callback, settings):
+        return
+
+    try:
+        # Create confirmation keyboard
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="⚠️ ДА, ОЧИСТИТЬ", callback_data="clear_stats_execute"
+                    ),
+                    InlineKeyboardButton(
+                        text="❌ Отмена", callback_data="clear_stats_cancel"
+                    ),
+                ]
+            ]
+        )
+
+        await callback.message.edit_text(
+            "⚠️ <b>Подтверждение очистки статистики</b>\n\n"
+            "Вы уверены, что хотите очистить ВСЮ статистику бота?\n\n"
+            "<b>Это действие необратимо!</b>\n"
+            "Будут удалены:\n"
+            "• Статистика пользователей\n"
+            "• История транзакций\n"
+            "• Журнал ошибок\n"
+            "• Системная статистика\n\n"
+            "<i>Рекомендуется сначала экспортировать статистику</i>",
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+
+        await callback.answer()
+
+    except Exception as e:
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        print(f"Error in handle_clear_stats_confirm: {e}")
+
+
+@admin_router.callback_query(F.data == "clear_stats_execute")
+async def handle_clear_stats_execute(
+    callback: CallbackQuery, settings: Settings
+) -> None:
+    """Handle clear stats execution.
+
+    Args:
+        callback: Callback query
+        settings: Application settings
+    """
+    # Check admin access
+    if not await check_admin_access(callback, settings):
+        return
+
+    try:
+        admin_service = get_admin_service(settings)
+
+        if admin_service.stats_service:
+            # Reset statistics
+            success = await admin_service.stats_service.reset_stats(confirm_reset=True)
+
+            if success:
+                await callback.message.edit_text(
+                    "✅ <b>Статистика очищена</b>\n\n"
+                    "Вся статистика бота была успешно удалена.\n"
+                    "Сбор новой статистики начнется автоматически.",
+                    parse_mode="HTML",
+                )
+                await callback.answer("✅ Статистика очищена")
+            else:
+                await callback.message.edit_text(
+                    "❌ <b>Ошибка очистки</b>\n\n"
+                    "Не удалось очистить статистику.\n"
+                    "Попробуйте позже или обратитесь к разработчику.",
+                    parse_mode="HTML",
+                )
+                await callback.answer("❌ Ошибка очистки статистики", show_alert=True)
+        else:
+            await callback.answer("❌ Сервис статистики недоступен", show_alert=True)
+
+    except Exception as e:
+        await callback.answer("❌ Ошибка очистки статистики", show_alert=True)
+        print(f"Error in handle_clear_stats_execute: {e}")
+
+
+@admin_router.callback_query(F.data == "clear_stats_cancel")
+async def handle_clear_stats_cancel(
+    callback: CallbackQuery, settings: Settings
+) -> None:
+    """Handle clear stats cancellation.
+
+    Args:
+        callback: Callback query
+        settings: Application settings
+    """
+    # Check admin access
+    if not await check_admin_access(callback, settings):
+        return
+
+    try:
+        admin_service = get_admin_service(settings)
+
+        # Show statistics again
+        stats_message = await admin_service.format_stats_message()
+
+        # Create inline keyboard for export option
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="📤 Экспорт в файл", callback_data="export_stats"
+                    ),
+                    InlineKeyboardButton(
+                        text="🔄 Обновить", callback_data="refresh_stats"
+                    ),
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="🗑 Очистить статистику",
+                        callback_data="clear_stats_confirm",
+                    )
+                ],
+            ]
+        )
+
+        await callback.message.edit_text(
+            stats_message,
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+
+        await callback.answer("❌ Очистка отменена")
+
+    except Exception as e:
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        print(f"Error in handle_clear_stats_cancel: {e}")
 
 
 # Export router for inclusion in main dispatcher

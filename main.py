@@ -31,6 +31,9 @@ from bot.handlers import (
     calc_router,
     admin_router,
 )  # noqa: E402
+from services.cache_service import CacheServiceFactory  # noqa: E402
+from services.stats_service import StatsServiceFactory  # noqa: E402
+from bot.handlers.admin_handlers import get_admin_service  # noqa: E402
 
 
 # Global variables for graceful shutdown
@@ -46,6 +49,8 @@ async def setup_bot_commands(bot: Bot) -> None:
         BotCommand(command="rate", description="💱 Посмотреть курс валют"),
         BotCommand(command="calc", description="🧮 Рассчитать сумму обмена"),
         BotCommand(command="set_markup", description="⚙️ Настроить наценку (админ)"),
+        BotCommand(command="set_manager", description="👥 Назначить менеджера (админ)"),
+        BotCommand(command="stats", description="📊 Показать статистику (админ)"),
     ]
 
     await bot.set_my_commands(commands)
@@ -112,6 +117,27 @@ async def create_dispatcher() -> Dispatcher:
 
     # Create dispatcher
     dp = Dispatcher()
+
+    # Create cache service for statistics
+    try:
+        cache_service = CacheServiceFactory.create_cache_service(settings)
+        await cache_service.initialize()
+        logging.info("✅ Cache service initialized")
+
+        # Create statistics service
+        stats_service = StatsServiceFactory.create_stats_service(
+            settings, cache_service
+        )
+        await stats_service.initialize()
+        logging.info("✅ Statistics service initialized")
+
+        # Initialize admin service with statistics
+        admin_service = get_admin_service(settings, stats_service)
+        logging.info("✅ Admin service initialized with statistics")
+
+    except Exception as e:
+        logging.warning(f"⚠️ Failed to initialize statistics service: {e}")
+        logging.info("📊 Statistics features will be disabled")
 
     # Include routers
     dp.include_router(basic_router)
