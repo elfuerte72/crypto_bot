@@ -25,15 +25,6 @@ from services.stats_service import StatsService
 from services.cache_service import CacheService
 
 
-def create_admin_router() -> Router:
-    """Create and configure admin handlers router.
-
-    Returns:
-        Configured router with admin handlers
-    """
-    router = Router(name="admin_handlers")
-
-
 class AdminStates(StatesGroup):
     """FSM states for admin operations."""
 
@@ -451,8 +442,7 @@ async def check_admin_access(
     return True
 
 
-    @router.message(Command("set_markup"))
-    async def cmd_set_markup(message: Message, settings: Settings) -> None:
+async def cmd_set_markup(message: Message, settings: Settings) -> None:
     """Handle /set_markup command - show currency pairs for markup management.
 
     Args:
@@ -489,10 +479,9 @@ async def check_admin_access(
         print(f"Error in cmd_set_markup: {e}")
 
 
-    @router.callback_query(F.data.startswith("markup:"))
-    async def handle_markup_selection(
-        callback: CallbackQuery, settings: Settings, state: FSMContext
-    ) -> None:
+async def handle_markup_selection(
+    callback: CallbackQuery, settings: Settings, state: FSMContext
+) -> None:
     """Handle currency pair selection for markup editing.
 
     Args:
@@ -552,10 +541,9 @@ async def check_admin_access(
         print(f"Error in handle_markup_selection: {e}")
 
 
-    @router.message(AdminStates.waiting_for_markup_value)
-    async def handle_markup_value_input(
-        message: Message, settings: Settings, state: FSMContext
-    ) -> None:
+async def handle_markup_value_input(
+    message: Message, settings: Settings, state: FSMContext
+) -> None:
     """Handle markup value input from admin.
 
     Args:
@@ -660,10 +648,9 @@ async def check_admin_access(
         print(f"Error in handle_markup_value_input: {e}")
 
 
-    @router.callback_query(F.data == "back_to_markup_selection")
-    async def handle_back_to_markup_selection(
-        callback: CallbackQuery, settings: Settings, state: FSMContext
-    ) -> None:
+async def handle_back_to_markup_selection(
+    callback: CallbackQuery, settings: Settings, state: FSMContext
+) -> None:
     """Handle back button to return to markup selection.
 
     Args:
@@ -702,588 +689,35 @@ async def check_admin_access(
         print(f"Error in handle_back_to_markup_selection: {e}")
 
 
-    @router.message(Command("set_manager"))
-    async def cmd_set_manager(message: Message, settings: Settings) -> None:
-    """Handle /set_manager command - show currency pairs for manager assignment.
+def create_admin_router() -> Router:
+    """Create and configure admin handlers router.
 
-    Args:
-        message: Incoming message
-        settings: Application settings
+    Returns:
+        Configured router with admin handlers
     """
-    # Check admin access
-    if not await check_admin_access(message, settings):
-        return
+    router = Router(name="admin_handlers")
 
-    try:
-        admin_service = get_admin_service(settings)
+    @router.message(Command("set_markup"))
+    async def handle_cmd_set_markup(message: Message, settings: Settings) -> None:
+        await cmd_set_markup(message, settings)
 
-        # Create manager selection keyboard
-        keyboard = CurrencyKeyboard(settings)
-        manager_keyboard = keyboard.create_manager_selection_keyboard()
-
-        # Format message with current managers info
-        managers_info = admin_service.format_managers_info_message()
-
-        await message.answer(
-            managers_info,
-            reply_markup=manager_keyboard,
-            parse_mode="HTML",
-        )
-
-    except Exception as e:
-        await message.answer(
-            "❌ Произошла ошибка при загрузке настроек менеджеров. "
-            "Попробуйте позже или обратитесь к разработчику.",
-            parse_mode="HTML",
-        )
-        # Log error for debugging
-        print(f"Error in cmd_set_manager: {e}")
-
-
-    @router.callback_query(F.data.startswith("manager:"))
-    async def handle_manager_selection(
+    @router.callback_query(F.data.startswith("markup:"))
+    async def handle_markup_callback(
         callback: CallbackQuery, settings: Settings, state: FSMContext
     ) -> None:
-    """Handle currency pair selection for manager assignment.
+        await handle_markup_selection(callback, settings, state)
 
-    Args:
-        callback: Callback query from inline keyboard
-        settings: Application settings
-        state: FSM context for storing state data
-    """
-    # Check admin access
-    if not await check_admin_access(callback, settings):
-        return
-
-    try:
-        # Parse callback data
-        parsed = parse_callback(callback.data)
-        if not parsed:
-            await callback.answer("❌ Неверный формат данных", show_alert=True)
-            return
-
-        action, base, quote = parsed
-
-        if action != "manager":
-            await callback.answer("❌ Неверное действие", show_alert=True)
-            return
-
-        pair_string = f"{base}/{quote}"
-        admin_service = get_admin_service(settings)
-        current_manager_id = admin_service.get_current_manager(pair_string)
-        current_manager_name = "Не назначен"
-        if current_manager_id:
-            current_manager_name = admin_service.get_manager_name(current_manager_id)
-
-        # Store pair info in FSM data
-        await state.update_data(
-            pair_string=pair_string,
-            base_currency=base,
-            quote_currency=quote,
-            current_manager_id=current_manager_id,
-            current_manager_name=current_manager_name,
-        )
-
-        # Set state for waiting manager ID
-        await state.set_state(AdminStates.waiting_for_manager_id)
-
-        # Show manager input prompt
-        await callback.message.edit_text(
-            f"👥 <b>Назначение менеджера</b>\n\n"
-            f"Валютная пара: <b>{pair_string}</b>\n"
-            f"Текущий менеджер: <i>{current_manager_name}</i>\n\n"
-            f"📝 Введите Telegram ID нового менеджера:\n"
-            f"<i>Например: 123456789</i>\n\n"
-            f"💡 <i>Чтобы узнать свой ID, напишите боту @userinfobot</i>",
-            reply_markup=CurrencyKeyboard.create_back_keyboard(
-                "back_to_manager_selection"
-            ),
-            parse_mode="HTML",
-        )
-
-        await callback.answer()
-
-    except Exception as e:
-        await callback.answer("❌ Произошла ошибка", show_alert=True)
-        print(f"Error in handle_manager_selection: {e}")
-
-
-    @router.message(AdminStates.waiting_for_manager_id)
-    async def handle_manager_id_input(
+    @router.message(AdminStates.waiting_for_markup_value)
+    async def handle_markup_input(
         message: Message, settings: Settings, state: FSMContext
     ) -> None:
-    """Handle manager ID input from admin.
+        await handle_markup_value_input(message, settings, state)
 
-    Args:
-        message: Message with manager ID
-        settings: Application settings
-        state: FSM context with stored data
-    """
-    # Check admin access
-    if not await check_admin_access(message, settings):
-        await state.clear()
-        return
-
-    try:
-        # Get stored data
-        data = await state.get_data()
-        pair_string = data.get("pair_string")
-        current_manager_id = data.get("current_manager_id")
-
-        if not pair_string:
-            await message.answer(
-                "❌ Ошибка: данные сессии потеряны. Начните заново с команды /set_manager",
-                parse_mode="HTML",
-            )
-            await state.clear()
-            return
-
-        # Validate and parse manager ID
-        manager_text = message.text.strip()
-
-        # Try to parse as integer first
-        try:
-            manager_id = int(manager_text)
-        except ValueError:
-            await message.answer(
-                "❌ <b>Неверный формат</b>\n\n"
-                "Введите корректный Telegram ID (только цифры).\n"
-                "Пример: <code>123456789</code>",
-                parse_mode="HTML",
-            )
-            return
-
-        # Validate manager ID range (Telegram user IDs are positive)
-        if manager_id <= 0:
-            await message.answer(
-                "❌ <b>Неверный ID</b>\n\n"
-                "Telegram ID должен быть положительным числом.\n"
-                f"Вы ввели: <code>{manager_id}</code>",
-                parse_mode="HTML",
-            )
-            return
-
-        # Generate manager name (we'll get the real name from Telegram later)
-        manager_name = f"Менеджер {manager_id}"
-
-        # Try to get user info from Telegram
-        try:
-            # In a real implementation, you might want to try to get user info
-            # For now, we'll use a generic name
-            pass
-        except Exception:
-            # If we can't get user info, use generic name
-            pass
-
-        # Assign manager to pair
-        admin_service = get_admin_service(settings)
-        success = admin_service.assign_manager_to_pair(
-            pair_string, manager_id, manager_name
-        )
-
-        if not success:
-            await message.answer(
-                "❌ <b>Ошибка назначения</b>\n\n"
-                "Не удалось назначить менеджера. "
-                "Попробуйте еще раз или обратитесь к разработчику.",
-                parse_mode="HTML",
-            )
-            return
-
-        # Format success message
-        success_message = admin_service.format_manager_change_message(
-            pair_string, current_manager_id, manager_id, manager_name
-        )
-
-        # Send confirmation with back to main menu option
-        keyboard = CurrencyKeyboard(settings)
-        manager_keyboard = keyboard.create_manager_selection_keyboard()
-
-        await message.answer(success_message, parse_mode="HTML")
-
-        # Show updated managers list
-        await asyncio.sleep(1)  # Small delay for better UX
-
-        managers_info = admin_service.format_managers_info_message()
-        await message.answer(
-            managers_info, reply_markup=manager_keyboard, parse_mode="HTML"
-        )
-
-        # Clear FSM state
-        await state.clear()
-
-    except Exception as e:
-        await message.answer(
-            "❌ Произошла ошибка при назначении менеджера. "
-            "Попробуйте еще раз или обратитесь к разработчику.",
-            parse_mode="HTML",
-        )
-        await state.clear()
-        print(f"Error in handle_manager_id_input: {e}")
-
-
-    @router.callback_query(F.data == "back_to_manager_selection")
-    async def handle_back_to_manager_selection(
+    @router.callback_query(F.data == "back_to_markup_selection")
+    async def handle_back_callback(
         callback: CallbackQuery, settings: Settings, state: FSMContext
     ) -> None:
-    """Handle back button to return to manager selection.
-
-    Args:
-        callback: Callback query
-        settings: Application settings
-        state: FSM context to clear
-    """
-    # Check admin access
-    if not await check_admin_access(callback, settings):
-        await state.clear()
-        return
-
-    try:
-        # Clear any FSM state
-        await state.clear()
-
-        admin_service = get_admin_service(settings)
-
-        # Create manager selection keyboard
-        keyboard = CurrencyKeyboard(settings)
-        manager_keyboard = keyboard.create_manager_selection_keyboard()
-
-        # Format message with current managers info
-        managers_info = admin_service.format_managers_info_message()
-
-        await callback.message.edit_text(
-            managers_info,
-            reply_markup=manager_keyboard,
-            parse_mode="HTML",
-        )
-
-        await callback.answer()
-
-    except Exception as e:
-        await callback.answer("❌ Произошла ошибка", show_alert=True)
-        print(f"Error in handle_back_to_manager_selection: {e}")
-
-
-    @router.message(Command("stats"))
-    async def cmd_stats(message: Message, settings: Settings) -> None:
-    """Handle /stats command - show bot usage statistics.
-
-    Args:
-        message: Incoming message
-        settings: Application settings
-    """
-    # Check admin access
-    if not await check_admin_access(message, settings):
-        return
-
-    try:
-        admin_service = get_admin_service(settings)
-
-        # Format statistics message
-        stats_message = await admin_service.format_stats_message()
-
-        # Create inline keyboard for export option
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="📤 Экспорт в файл", callback_data="export_stats"
-                    ),
-                    InlineKeyboardButton(
-                        text="🔄 Обновить", callback_data="refresh_stats"
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        text="🗑 Очистить статистику",
-                        callback_data="clear_stats_confirm",
-                    )
-                ],
-            ]
-        )
-
-        await message.answer(
-            stats_message,
-            reply_markup=keyboard,
-            parse_mode="HTML",
-        )
-
-    except Exception as e:
-        await message.answer(
-            "❌ Произошла ошибка при загрузке статистики. "
-            "Попробуйте позже или обратитесь к разработчику.",
-            parse_mode="HTML",
-        )
-        print(f"Error in cmd_stats: {e}")
-
-
-    @router.callback_query(F.data == "refresh_stats")
-    async def handle_refresh_stats(callback: CallbackQuery, settings: Settings) -> None:
-    """Handle refresh stats button.
-
-    Args:
-        callback: Callback query
-        settings: Application settings
-    """
-    # Check admin access
-    if not await check_admin_access(callback, settings):
-        return
-
-    try:
-        admin_service = get_admin_service(settings)
-
-        # Format updated statistics message
-        stats_message = await admin_service.format_stats_message()
-
-        # Create inline keyboard for export option
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="📤 Экспорт в файл", callback_data="export_stats"
-                    ),
-                    InlineKeyboardButton(
-                        text="🔄 Обновить", callback_data="refresh_stats"
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        text="🗑 Очистить статистику",
-                        callback_data="clear_stats_confirm",
-                    )
-                ],
-            ]
-        )
-
-        await callback.message.edit_text(
-            stats_message,
-            reply_markup=keyboard,
-            parse_mode="HTML",
-        )
-
-        await callback.answer("✅ Статистика обновлена")
-
-    except Exception as e:
-        await callback.answer("❌ Ошибка обновления статистики", show_alert=True)
-        print(f"Error in handle_refresh_stats: {e}")
-
-
-    @router.callback_query(F.data == "export_stats")
-    async def handle_export_stats(callback: CallbackQuery, settings: Settings) -> None:
-    """Handle export stats button.
-
-    Args:
-        callback: Callback query
-        settings: Application settings
-    """
-    # Check admin access
-    if not await check_admin_access(callback, settings):
-        return
-
-    try:
-        admin_service = get_admin_service(settings)
-
-        # Generate file path with timestamp
-        from datetime import datetime
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        file_path = f"stats_export_{timestamp}.json"
-
-        # Export statistics to file
-        success = await admin_service.export_stats_to_file(file_path)
-
-        if success:
-            # Send file to admin
-            from aiogram.types import FSInputFile
-
-            try:
-                document = FSInputFile(
-                    file_path, filename=f"bot_statistics_{timestamp}.json"
-                )
-                await callback.message.answer_document(
-                    document=document,
-                    caption=f"📊 <b>Экспорт статистики</b>\n\n"
-                    f"📅 Дата: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}\n"
-                    f"📁 Файл: bot_statistics_{timestamp}.json\n\n"
-                    f"<i>Файл содержит детальную статистику использования бота</i>",
-                    parse_mode="HTML",
-                )
-
-                # Clean up file after sending
-                import os
-
-                try:
-                    os.remove(file_path)
-                except:
-                    pass
-
-                await callback.answer("✅ Статистика экспортирована")
-            except Exception as send_error:
-                await callback.answer(
-                    f"❌ Ошибка отправки файла: {str(send_error)}", show_alert=True
-                )
-        else:
-            await callback.answer("❌ Ошибка экспорта статистики", show_alert=True)
-
-    except Exception as e:
-        await callback.answer("❌ Ошибка экспорта статистики", show_alert=True)
-        print(f"Error in handle_export_stats: {e}")
-
-
-    @router.callback_query(F.data == "clear_stats_confirm")
-    async def handle_clear_stats_confirm(
-        callback: CallbackQuery, settings: Settings
-    ) -> None:
-    """Handle clear stats confirmation.
-
-    Args:
-        callback: Callback query
-        settings: Application settings
-    """
-    # Check admin access
-    if not await check_admin_access(callback, settings):
-        return
-
-    try:
-        # Create confirmation keyboard
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="⚠️ ДА, ОЧИСТИТЬ", callback_data="clear_stats_execute"
-                    ),
-                    InlineKeyboardButton(
-                        text="❌ Отмена", callback_data="clear_stats_cancel"
-                    ),
-                ]
-            ]
-        )
-
-        await callback.message.edit_text(
-            "⚠️ <b>Подтверждение очистки статистики</b>\n\n"
-            "Вы уверены, что хотите очистить ВСЮ статистику бота?\n\n"
-            "<b>Это действие необратимо!</b>\n"
-            "Будут удалены:\n"
-            "• Статистика пользователей\n"
-            "• История транзакций\n"
-            "• Журнал ошибок\n"
-            "• Системная статистика\n\n"
-            "<i>Рекомендуется сначала экспортировать статистику</i>",
-            reply_markup=keyboard,
-            parse_mode="HTML",
-        )
-
-        await callback.answer()
-
-    except Exception as e:
-        await callback.answer("❌ Произошла ошибка", show_alert=True)
-        print(f"Error in handle_clear_stats_confirm: {e}")
-
-
-    @router.callback_query(F.data == "clear_stats_execute")
-    async def handle_clear_stats_execute(
-        callback: CallbackQuery, settings: Settings
-    ) -> None:
-    """Handle clear stats execution.
-
-    Args:
-        callback: Callback query
-        settings: Application settings
-    """
-    # Check admin access
-    if not await check_admin_access(callback, settings):
-        return
-
-    try:
-        admin_service = get_admin_service(settings)
-
-        if admin_service.stats_service:
-            # Reset statistics
-            success = await admin_service.stats_service.reset_stats(confirm_reset=True)
-
-            if success:
-                await callback.message.edit_text(
-                    "✅ <b>Статистика очищена</b>\n\n"
-                    "Вся статистика бота была успешно удалена.\n"
-                    "Сбор новой статистики начнется автоматически.",
-                    parse_mode="HTML",
-                )
-                await callback.answer("✅ Статистика очищена")
-            else:
-                await callback.message.edit_text(
-                    "❌ <b>Ошибка очистки</b>\n\n"
-                    "Не удалось очистить статистику.\n"
-                    "Попробуйте позже или обратитесь к разработчику.",
-                    parse_mode="HTML",
-                )
-                await callback.answer("❌ Ошибка очистки статистики", show_alert=True)
-        else:
-            await callback.answer("❌ Сервис статистики недоступен", show_alert=True)
-
-    except Exception as e:
-        await callback.answer("❌ Ошибка очистки статистики", show_alert=True)
-        print(f"Error in handle_clear_stats_execute: {e}")
-
-
-    @router.callback_query(F.data == "clear_stats_cancel")
-    async def handle_clear_stats_cancel(
-        callback: CallbackQuery, settings: Settings
-    ) -> None:
-    """Handle clear stats cancellation.
-
-    Args:
-        callback: Callback query
-        settings: Application settings
-    """
-    # Check admin access
-    if not await check_admin_access(callback, settings):
-        return
-
-    try:
-        admin_service = get_admin_service(settings)
-
-        # Show statistics again
-        stats_message = await admin_service.format_stats_message()
-
-        # Create inline keyboard for export option
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="📤 Экспорт в файл", callback_data="export_stats"
-                    ),
-                    InlineKeyboardButton(
-                        text="🔄 Обновить", callback_data="refresh_stats"
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        text="🗑 Очистить статистику",
-                        callback_data="clear_stats_confirm",
-                    )
-                ],
-            ]
-        )
-
-        await callback.message.edit_text(
-            stats_message,
-            reply_markup=keyboard,
-            parse_mode="HTML",
-        )
-
-        await callback.answer("❌ Очистка отменена")
-
-    except Exception as e:
-        await callback.answer("❌ Произошла ошибка", show_alert=True)
-        print(f"Error in handle_clear_stats_cancel: {e}")
+        await handle_back_to_markup_selection(callback, settings, state)
 
     return router
 
@@ -1295,4 +729,8 @@ __all__ = [
     "get_admin_service",
     "AdminStates",
     "check_admin_access",
+    "cmd_set_markup",
+    "handle_markup_selection",
+    "handle_markup_value_input",
+    "handle_back_to_markup_selection",
 ]

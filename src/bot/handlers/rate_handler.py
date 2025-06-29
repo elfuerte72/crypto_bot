@@ -199,6 +199,154 @@ def get_rate_service(settings: Settings) -> RateService:
     return _rate_service
 
 
+async def cmd_rate(message: Message, settings: Settings) -> None:
+    """Handle /rate command - show currency selection keyboard.
+
+    Args:
+        message: Incoming message
+        settings: Application settings
+    """
+    try:
+        # Create currency selection keyboard
+        keyboard = get_rate_keyboard(settings)
+
+        await message.answer(
+            "💱 <b>Выберите валютную пару</b>\n\n"
+            "Выберите валютную пару для просмотра текущего курса:",
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+
+    except Exception as e:
+        await message.answer(
+            "❌ Произошла ошибка при загрузке списка валют. "
+            "Попробуйте позже или обратитесь к администратору.",
+            parse_mode="HTML",
+        )
+        # Log error for debugging
+        print(f"Error in cmd_rate: {e}")
+
+
+async def handle_currency_selection(
+    callback: CallbackQuery, settings: Settings
+) -> None:
+    """Handle currency pair selection from inline keyboard.
+
+    Args:
+        callback: Callback query from inline keyboard
+        settings: Application settings
+    """
+    try:
+        # Parse callback data
+        parsed = parse_callback(callback.data)
+        if not parsed:
+            await callback.answer("❌ Неверный формат данных", show_alert=True)
+            return
+
+        action, base, quote = parsed
+
+        if action != "currency":
+            await callback.answer("❌ Неверное действие", show_alert=True)
+            return
+
+        # Show loading message
+        await callback.answer("🔄 Загружаю курс...", show_alert=False)
+
+        # Get rate service
+        rate_service = get_rate_service(settings)
+
+        # Fetch rate data
+        rate_data = await rate_service.get_rate_for_pair(base, quote)
+
+        if not rate_data:
+            await callback.message.edit_text(
+                f"❌ <b>Курс не найден</b>\n\n"
+                f"К сожалению, курс для пары <code>{base}/{quote}</code> "
+                f"в данный момент недоступен.\n\n"
+                f"Попробуйте выбрать другую валютную пару или повторите попытку позже.",
+                parse_mode="HTML",
+                reply_markup=CurrencyKeyboard.create_back_keyboard(
+                    "back_to_rate_selection"
+                ),
+            )
+            return
+
+        # Apply markup and format
+        rate_info = await rate_service.apply_markup_to_rate(rate_data, base, quote)
+        formatted_message = await rate_service.format_rate_message(rate_info)
+
+        # Update message with rate information
+        await callback.message.edit_text(
+            formatted_message,
+            parse_mode="HTML",
+            reply_markup=CurrencyKeyboard.create_back_keyboard(
+                "back_to_rate_selection"
+            ),
+        )
+
+    except RapiraApiException as e:
+        await callback.message.edit_text(
+            "❌ <b>Ошибка API</b>\n\n"
+            "Не удалось получить данные с биржи. "
+            "Попробуйте позже или обратитесь к администратору.",
+            parse_mode="HTML",
+            reply_markup=CurrencyKeyboard.create_back_keyboard(
+                "back_to_rate_selection"
+            ),
+        )
+        print(f"API error in handle_currency_selection: {e}")
+
+    except asyncio.TimeoutError:
+        await callback.message.edit_text(
+            "⏱️ <b>Превышено время ожидания</b>\n\n"
+            "Запрос занял слишком много времени. "
+            "Попробуйте еще раз.",
+            parse_mode="HTML",
+            reply_markup=CurrencyKeyboard.create_back_keyboard(
+                "back_to_rate_selection"
+            ),
+        )
+
+    except Exception as e:
+        await callback.message.edit_text(
+            "❌ <b>Произошла ошибка</b>\n\n"
+            "Не удалось получить курс валют. "
+            "Попробуйте позже или обратитесь к администратору.",
+            parse_mode="HTML",
+            reply_markup=CurrencyKeyboard.create_back_keyboard(
+                "back_to_rate_selection"
+            ),
+        )
+        print(f"Unexpected error in handle_currency_selection: {e}")
+
+
+async def handle_back_to_rate_selection(
+    callback: CallbackQuery, settings: Settings
+) -> None:
+    """Handle back button to return to rate selection.
+
+    Args:
+        callback: Callback query
+        settings: Application settings
+    """
+    try:
+        # Create currency selection keyboard
+        keyboard = get_rate_keyboard(settings)
+
+        await callback.message.edit_text(
+            "💱 <b>Выберите валютную пару</b>\n\n"
+            "Выберите валютную пару для просмотра текущего курса:",
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+
+        await callback.answer()
+
+    except Exception as e:
+        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        print(f"Error in handle_back_to_rate_selection: {e}")
+
+
 def create_rate_router() -> Router:
     """Create and configure rate handlers router.
 
@@ -208,155 +356,28 @@ def create_rate_router() -> Router:
     router = Router(name="rate_handlers")
 
     @router.message(Command("rate"))
-    async def cmd_rate(message: Message, settings: Settings) -> None:
-        """Handle /rate command - show currency selection keyboard.
-
-        Args:
-            message: Incoming message
-            settings: Application settings
-        """
-        try:
-            # Create currency selection keyboard
-            keyboard = get_rate_keyboard(settings)
-
-            await message.answer(
-                "💱 <b>Выберите валютную пару</b>\n\n"
-                "Выберите валютную пару для просмотра текущего курса:",
-                reply_markup=keyboard,
-                parse_mode="HTML",
-            )
-
-        except Exception as e:
-            await message.answer(
-                "❌ Произошла ошибка при загрузке списка валют. "
-                "Попробуйте позже или обратитесь к администратору.",
-                parse_mode="HTML",
-            )
-            # Log error for debugging
-            print(f"Error in cmd_rate: {e}")
+    async def handle_cmd_rate(message: Message, settings: Settings) -> None:
+        await cmd_rate(message, settings)
 
     @router.callback_query(F.data.startswith("currency:"))
-    async def handle_currency_selection(
+    async def handle_currency_callback(
         callback: CallbackQuery, settings: Settings
     ) -> None:
-        """Handle currency pair selection from inline keyboard.
-
-        Args:
-            callback: Callback query from inline keyboard
-            settings: Application settings
-        """
-        try:
-            # Parse callback data
-            parsed = parse_callback(callback.data)
-            if not parsed:
-                await callback.answer("❌ Неверный формат данных", show_alert=True)
-                return
-
-            action, base, quote = parsed
-
-            if action != "currency":
-                await callback.answer("❌ Неверное действие", show_alert=True)
-                return
-
-            # Show loading message
-            await callback.answer("🔄 Загружаю курс...", show_alert=False)
-
-            # Get rate service
-            rate_service = get_rate_service(settings)
-
-            # Fetch rate data
-            rate_data = await rate_service.get_rate_for_pair(base, quote)
-
-            if not rate_data:
-                await callback.message.edit_text(
-                    f"❌ <b>Курс не найден</b>\n\n"
-                    f"К сожалению, курс для пары <code>{base}/{quote}</code> "
-                    f"в данный момент недоступен.\n\n"
-                    f"Попробуйте выбрать другую валютную пару или повторите попытку позже.",
-                    parse_mode="HTML",
-                    reply_markup=CurrencyKeyboard.create_back_keyboard(
-                        "back_to_rate_selection"
-                    ),
-                )
-                return
-
-            # Apply markup and format
-            rate_info = await rate_service.apply_markup_to_rate(rate_data, base, quote)
-            formatted_message = await rate_service.format_rate_message(rate_info)
-
-            # Update message with rate information
-            await callback.message.edit_text(
-                formatted_message,
-                parse_mode="HTML",
-                reply_markup=CurrencyKeyboard.create_back_keyboard(
-                    "back_to_rate_selection"
-                ),
-            )
-
-        except RapiraApiException as e:
-            await callback.message.edit_text(
-                "❌ <b>Ошибка API</b>\n\n"
-                "Не удалось получить данные с биржи. "
-                "Попробуйте позже или обратитесь к администратору.",
-                parse_mode="HTML",
-                reply_markup=CurrencyKeyboard.create_back_keyboard(
-                    "back_to_rate_selection"
-                ),
-            )
-            print(f"API error in handle_currency_selection: {e}")
-
-        except asyncio.TimeoutError:
-            await callback.message.edit_text(
-                "⏱️ <b>Превышено время ожидания</b>\n\n"
-                "Запрос занял слишком много времени. "
-                "Попробуйте еще раз.",
-                parse_mode="HTML",
-                reply_markup=CurrencyKeyboard.create_back_keyboard(
-                    "back_to_rate_selection"
-                ),
-            )
-
-        except Exception as e:
-            await callback.message.edit_text(
-                "❌ <b>Произошла ошибка</b>\n\n"
-                "Не удалось получить курс валют. "
-                "Попробуйте позже или обратитесь к администратору.",
-                parse_mode="HTML",
-                reply_markup=CurrencyKeyboard.create_back_keyboard(
-                    "back_to_rate_selection"
-                ),
-            )
-            print(f"Unexpected error in handle_currency_selection: {e}")
+        await handle_currency_selection(callback, settings)
 
     @router.callback_query(F.data == "back_to_rate_selection")
-    async def handle_back_to_rate_selection(
-        callback: CallbackQuery, settings: Settings
-    ) -> None:
-        """Handle back button to return to rate selection.
-
-        Args:
-            callback: Callback query
-            settings: Application settings
-        """
-        try:
-            # Create currency selection keyboard
-            keyboard = get_rate_keyboard(settings)
-
-            await callback.message.edit_text(
-                "💱 <b>Выберите валютную пару</b>\n\n"
-                "Выберите валютную пару для просмотра текущего курса:",
-                reply_markup=keyboard,
-                parse_mode="HTML",
-            )
-
-            await callback.answer()
-
-        except Exception as e:
-            await callback.answer("❌ Произошла ошибка", show_alert=True)
-            print(f"Error in handle_back_to_rate_selection: {e}")
+    async def handle_back_callback(callback: CallbackQuery, settings: Settings) -> None:
+        await handle_back_to_rate_selection(callback, settings)
 
     return router
 
 
 # Export router for inclusion in main dispatcher
-__all__ = ["create_rate_router", "RateService", "get_rate_service"]
+__all__ = [
+    "create_rate_router",
+    "RateService",
+    "get_rate_service",
+    "cmd_rate",
+    "handle_currency_selection",
+    "handle_back_to_rate_selection",
+]
