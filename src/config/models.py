@@ -286,7 +286,7 @@ class ApplicationConfig(BaseModel):
     @classmethod
     def validate_environment(cls, v: str) -> str:
         """Validate environment value."""
-        valid_envs = {"development", "staging", "production"}
+        valid_envs = {"development", "staging", "production", "test"}
         v_lower = v.lower()
         if v_lower not in valid_envs:
             raise ValueError(f"Invalid environment: {v}. Must be one of {valid_envs}")

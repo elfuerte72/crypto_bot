@@ -389,7 +389,7 @@ class TestApplicationConfig:
     def test_environment_validation(self) -> None:
         """Test environment validation."""
         # Valid environments
-        for env in ["development", "staging", "production"]:
+        for env in ["development", "staging", "production", "test"]:
             config = ApplicationConfig(environment=env)
             assert config.environment == env
 
@@ -399,7 +399,7 @@ class TestApplicationConfig:
 
         # Invalid environment
         with pytest.raises(ValidationError) as exc_info:
-            ApplicationConfig(environment="test")
+            ApplicationConfig(environment="invalid")
 
         assert "Invalid environment" in str(exc_info.value)
 
@@ -458,6 +458,8 @@ class TestSettings:
     def test_get_manager_for_pair(self) -> None:
         """Test getting manager for currency pair."""
         settings = Settings()
+        # Clear default manager for this test
+        settings.default_manager_id = None
 
         # Add manager and currency pair
         settings.add_manager(123456789, "Test Manager")
@@ -469,7 +471,7 @@ class TestSettings:
         assert manager is not None
         assert manager.user_id == 123456789
 
-        # Get manager for non-existent pair
+        # Get manager for non-existent pair (should return None when no default manager)
         manager = settings.get_manager_for_pair("XXX/YYY")
         assert manager is None
 
