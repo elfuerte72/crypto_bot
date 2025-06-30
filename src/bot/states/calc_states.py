@@ -13,6 +13,9 @@ class CalcStates(StatesGroup):
     # State for selecting currency pair
     selecting_pair = State()
 
+    # State for showing rate and calculate button
+    showing_rate = State()
+
     # State for entering amount to convert
     entering_amount = State()
 

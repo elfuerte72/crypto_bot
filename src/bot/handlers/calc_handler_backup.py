@@ -179,29 +179,30 @@ class CalcService:
             True if notification sent successfully
         """
         try:
-            # Simple notification - just send to admin user
-            admin_id = self.settings.admin_user_id
-            if not admin_id:
-                logger.error("No admin user ID configured for notifications")
-                return False
+            notification_service = await self.get_notification_service(bot)
 
-            # Format notification message
-            message = (
-                f"🔔 <b>Новая заявка на обмен</b>\n\n"
-                f"👤 <b>Пользователь:</b> @{user_info.get('username', 'Unknown')} (ID: {user_info.get('user_id', 'Unknown')})\n\n"
-                f"💱 <b>Обмен:</b> {calculation_result.base_currency} → {calculation_result.quote_currency}\n"
-                f"💰 <b>Сумма:</b> {calculation_result.formatted_input}\n"
-                f"💵 <b>К получению:</b> {calculation_result.formatted_output}\n"
-                f"📊 <b>Курс:</b> {calculation_result.final_rate:.6f}\n"
-                f"💸 <b>Прибыль:</b> {calculation_result.markup_amount:.2f} {calculation_result.quote_currency}\n\n"
-                f"⏰ <b>Время:</b> {calculation_result.timestamp.strftime('%d.%m.%Y %H:%M:%S')}"
+            # Create notification data
+            import uuid
+
+            transaction_id = str(uuid.uuid4())[:8]  # Short transaction ID
+
+            notification_data = NotificationData(
+                transaction_id=transaction_id,
+                user_id=user_info.get("user_id", 0),
+                username=user_info.get("username"),
+                full_name=user_info.get("full_name"),
+                calculation_result=calculation_result,
             )
 
-            await bot.send_message(chat_id=admin_id, text=message, parse_mode="HTML")
+            # Send notification
+            await notification_service.send_transaction_notification(notification_data)
             return True
 
-        except Exception as e:
+        except NotificationError as e:
             logger.error(f"Failed to send manager notification: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error sending notification: {e}")
             return False
 
     async def cleanup(self) -> None:
@@ -271,9 +272,6 @@ async def cmd_calc(message: Message, state: FSMContext, settings: Settings) -> N
         # Update message ID and set state
         await state.update_data({CalcData.MESSAGE_ID: sent_message.message_id})
         await state.set_state(CalcStates.selecting_pair)
-        logger.info(
-            f"CALC COMMAND: State set to selecting_pair for user {message.from_user.id}"
-        )
 
     except Exception as e:
         logger.error(f"Error in cmd_calc: {e}")
@@ -295,9 +293,6 @@ async def handle_pair_selection(
         state: FSM context
         settings: Application settings
     """
-    logger.info(
-        f"PAIR SELECTION: callback_data='{callback.data}', user={callback.from_user.id}"
-    )
     try:
         # Parse callback data
         parsed = parse_callback(callback.data)
@@ -319,110 +314,6 @@ async def handle_pair_selection(
             }
         )
 
-        # Show loading message
-        await callback.message.edit_text(
-            "🔄 <b>Получаю курс...</b>\n\n" "Пожалуйста, подождите.",
-            parse_mode="HTML",
-        )
-
-        # Get rate data
-        calc_service = get_calc_service(settings)
-        rate_data = await calc_service.get_rate_for_pair(base, quote)
-
-        if not rate_data:
-            await callback.message.edit_text(
-                f"❌ <b>Курс не найден</b>\n\n"
-                f"К сожалению, курс для пары <code>{base}/{quote}</code> "
-                f"в данный момент недоступен.\n\n"
-                f"Попробуйте выбрать другую валютную пару или повторите попытку позже.",
-                parse_mode="HTML",
-                reply_markup=CurrencyKeyboard.create_back_keyboard(
-                    "back_to_pair_selection"
-                ),
-            )
-            return
-
-        # Store rate data
-        await state.update_data({CalcData.RATE_DATA: rate_data.model_dump()})
-
-        # Calculate markup rate and final rate
-        markup_rate = settings.default_markup_rate
-        market_rate = float(rate_data.close)  # Use 'close' instead of 'rate'
-        final_rate = market_rate * (1 + markup_rate / 100)
-
-        # Устанавливаем состояние до создания клавиатуры
-        await state.set_state(CalcStates.showing_rate)
-        logger.info(f"State set to showing_rate for user {callback.from_user.id}")
-
-        # Создаём клавиатуру вручную через InlineKeyboardBuilder
-        from aiogram.utils.keyboard import InlineKeyboardBuilder
-        from aiogram.types import InlineKeyboardButton
-
-        builder = InlineKeyboardBuilder()
-        builder.row(
-            InlineKeyboardButton(text="🧮 Рассчитать", callback_data="start_calculation")
-        )
-        builder.row(
-            InlineKeyboardButton(
-                text="⬅️ Назад", callback_data="back_to_pair_selection"
-            )
-        )
-        calculate_keyboard = builder.as_markup()
-        logger.info("Перед отправкой edit_text с клавиатурой")
-        try:
-            await callback.message.edit_text(
-                f"🧮 <b>Калькулятор обмена</b>\n\n"
-                f"💱 <b>Валютная пара:</b> {base} → {quote}\n\n"
-                f"📊 <b>Курс:</b>\n"
-                f"• Рыночный: <code>{market_rate:.6f}</code>\n"
-                f"• Наша наценка: <code>{markup_rate}%</code>\n"
-                f"• Итоговый: <code>{final_rate:.6f}</code>\n\n"
-                f"💰 Нажмите 'Рассчитать', чтобы ввести сумму",
-                reply_markup=calculate_keyboard,
-                parse_mode="HTML",
-            )
-            logger.info("edit_text с клавиатурой отправлен")
-        except Exception as e:
-            logger.error(f"Ошибка при отправке edit_text: {e}")
-        await callback.answer()
-
-    except Exception as e:
-        logger.error(f"Error in handle_pair_selection: {e}")
-        import traceback
-
-        logger.error(f"Full traceback: {traceback.format_exc()}")
-        await callback.answer("❌ Произошла ошибка", show_alert=True)
-
-
-@calc_router.callback_query(CalcStates.showing_rate, F.data == "start_calculation")
-async def handle_start_calculation(
-    callback: CallbackQuery, state: FSMContext, settings: Settings
-) -> None:
-    """Handle start calculation button press.
-
-    Args:
-        callback: Callback query
-        state: FSM context
-        settings: Application settings
-    """
-    current_state = await state.get_state()
-    state_data = await state.get_data()
-    logger.info(f"🎯 START_CALCULATION HANDLER TRIGGERED!")
-    logger.info(f"   User: {callback.from_user.id}")
-    logger.info(f"   Current state: {current_state}")
-    logger.info(f"   Expected state: {CalcStates.showing_rate}")
-    logger.info(f"   Callback data: '{callback.data}'")
-    logger.info(f"   State data keys: {list(state_data.keys())}")
-    try:
-        # Get state data
-        data = await state.get_data()
-        base = data.get(CalcData.BASE_CURRENCY)
-        quote = data.get(CalcData.QUOTE_CURRENCY)
-
-        if not base or not quote:
-            await callback.answer("❌ Данные не найдены", show_alert=True)
-            return
-
         # Show amount input message
         await callback.message.edit_text(
             f"🧮 <b>Калькулятор обмена</b>\n\n"
@@ -440,7 +331,7 @@ async def handle_start_calculation(
         await callback.answer()
 
     except Exception as e:
-        logger.error(f"Error in handle_start_calculation: {e}")
+        logger.error(f"Error in handle_pair_selection: {e}")
         await callback.answer("❌ Произошла ошибка", show_alert=True)
 
 
@@ -460,10 +351,11 @@ async def handle_amount_input(
         data = await state.get_data()
         base = data.get(CalcData.BASE_CURRENCY)
         quote = data.get(CalcData.QUOTE_CURRENCY)
-        rate_data_dict = data.get(CalcData.RATE_DATA)
 
-        if not base or not quote or not rate_data_dict:
-            await message.answer("❌ Ошибка: данные не найдены. Начните заново с /calc")
+        if not base or not quote:
+            await message.answer(
+                "❌ Ошибка: валютная пара не выбрана. Начните заново с /calc"
+            )
             await state.clear()
             return
 
@@ -471,38 +363,62 @@ async def handle_amount_input(
         amount_str = message.text.strip()
 
         try:
-            # Simple amount validation
-            amount = Decimal(amount_str.replace(",", "."))
-            if amount <= 0:
-                raise ValueError("Amount must be positive")
-        except (ValueError, InvalidOperation):
+            calc_service = get_calc_service(settings)
+            calculation_service = await calc_service.get_calculation_service()
+            amount = calculation_service.validate_amount_format(amount_str)
+        except InvalidAmountError as e:
             await message.answer(
                 f"❌ <b>Неверная сумма</b>\n\n"
-                f"Введите корректную сумму в <b>{base}</b>:\n"
-                f"<i>Например: 1000 или 1000.50</i>",
+                f"Ошибка: {e.message}\n\n"
+                f"Введите корректную сумму в <b>{base}</b>:",
                 parse_mode="HTML",
             )
             return
 
         # Show loading message
         loading_msg = await message.answer(
-            "🔄 <b>Рассчитываю...</b>\n\n" "Это может занять несколько секунд.",
+            "🔄 <b>Получаю курс и рассчитываю...</b>\n\n"
+            "Это может занять несколько секунд.",
             parse_mode="HTML",
         )
 
-        # Reconstruct rate data
-        rate_data = RapiraRateData.model_validate(rate_data_dict)
+        # Get rate data
+        calc_service = get_calc_service(settings)
+        rate_data = await calc_service.get_rate_for_pair(base, quote)
+
+        if not rate_data:
+            await loading_msg.edit_text(
+                f"❌ <b>Курс не найден</b>\n\n"
+                f"К сожалению, курс для пары <code>{base}/{quote}</code> "
+                f"в данный момент недоступен.\n\n"
+                f"Попробуйте выбрать другую валютную пару или повторите попытку позже.",
+                parse_mode="HTML",
+                reply_markup=CurrencyKeyboard.create_back_keyboard(
+                    "back_to_pair_selection"
+                ),
+            )
+            return
 
         # Calculate exchange
         try:
-            calc_service = get_calc_service(settings)
             calculation_result = await calc_service.calculate_exchange(
                 base, quote, amount, rate_data
             )
-        except Exception as e:
+        except (UnsupportedPairError, RateDataError) as e:
             await loading_msg.edit_text(
                 f"❌ <b>Ошибка расчета</b>\n\n"
-                f"Не удалось рассчитать обмен: {str(e)}\n\n"
+                f"{e.message}\n\n"
+                f"Попробуйте другую валютную пару.",
+                parse_mode="HTML",
+                reply_markup=CurrencyKeyboard.create_back_keyboard(
+                    "back_to_pair_selection"
+                ),
+            )
+            return
+        except CalculationError as e:
+            await loading_msg.edit_text(
+                f"❌ <b>Ошибка расчета</b>\n\n"
+                f"Не удалось рассчитать обмен: {e.message}\n\n"
                 f"Попробуйте еще раз или обратитесь к администратору.",
                 parse_mode="HTML",
                 reply_markup=CurrencyKeyboard.create_back_keyboard(
@@ -515,6 +431,7 @@ async def handle_amount_input(
         await state.update_data(
             {
                 CalcData.AMOUNT: str(amount),
+                CalcData.RATE_DATA: rate_data.model_dump(),
                 CalcData.CALCULATION_RESULT: calculation_result.model_dump(),
             }
         )
@@ -744,28 +661,6 @@ async def format_calculation_result(
         message += "\n\n<i>Подтвердите расчет для отправки заявки менеджеру</i>"
 
     return message
-
-
-# Simple test handler for start_calculation - DISABLED to avoid conflict
-# @calc_router.callback_query(F.data == "start_calculation")
-# async def handle_start_calculation_simple(
-#     callback: CallbackQuery, state: FSMContext
-# ) -> None:
-#     """Simple test handler for start_calculation button."""
-#     logger.warning(f"SIMPLE HANDLER: start_calculation pressed by user {callback.from_user.id}")
-#     await callback.answer("✅ Кнопка работает!", show_alert=True)
-
-
-# Debug handler for unhandled callbacks
-@calc_router.callback_query()
-async def handle_unhandled_callback(callback: CallbackQuery, state: FSMContext) -> None:
-    """Handle unhandled callback queries for debugging."""
-    current_state = await state.get_state()
-    logger.warning(
-        f"Unhandled callback: data='{callback.data}', "
-        f"user={callback.from_user.id}, current_state={current_state}"
-    )
-    await callback.answer("❌ Неизвестная команда", show_alert=True)
 
 
 # Export router for inclusion in main dispatcher

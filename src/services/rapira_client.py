@@ -141,11 +141,11 @@ class RapiraApiClient:
                 f"Circuit breaker opened after {self.circuit_breaker.failure_count} failures"
             )
 
-    async def _make_request(self, endpoint: str) -> dict[str, Any]:
+    async def _make_request(self, url: str | None = None) -> dict[str, Any]:
         """Make HTTP request with retry logic and error handling.
 
         Args:
-            endpoint: API endpoint path
+            url: Full URL to request (if None, uses base_url)
 
         Returns:
             Response data as dictionary
@@ -156,7 +156,8 @@ class RapiraApiClient:
         await self._ensure_client()
         self._check_circuit_breaker()
 
-        url = f"{self.config.base_url}{endpoint}"
+        if url is None:
+            url = self.config.base_url
         last_exception: Exception | None = None
 
         for attempt in range(self.config.max_retries + 1):
@@ -287,7 +288,8 @@ class RapiraApiClient:
             ValidationError: For response validation errors
         """
         try:
-            data = await self._make_request("/open/market/rates")
+            # Use full URL from config (no need to append endpoint)
+            data = await self._make_request()
             response = RapiraApiResponse(**data)
 
             logger.info(f"Retrieved {len(response.data)} market rates")

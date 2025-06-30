@@ -269,6 +269,25 @@ class CurrencyKeyboard:
         )
         return builder.as_markup()
 
+    @staticmethod
+    def create_calculate_keyboard(
+        back_data: str = "back_to_pair_selection",
+    ) -> InlineKeyboardMarkup:
+        """Create keyboard with Calculate button.
+
+        Args:
+            back_data: Callback data for back button
+
+        Returns:
+            InlineKeyboardMarkup with Calculate and Back buttons
+        """
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(text="🧮 Рассчитать", callback_data="start_calculation")
+        )
+        builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data=back_data))
+        return builder.as_markup()
+
 
 # Convenience functions for quick keyboard creation
 def get_rate_keyboard(settings: Optional[Settings] = None) -> InlineKeyboardMarkup:
