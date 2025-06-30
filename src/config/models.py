@@ -18,8 +18,9 @@ class TelegramConfig(BaseModel):
     """Telegram bot configuration."""
 
     token: str = Field(default="", description="Telegram Bot API token", min_length=0)
-    admin_user_ids: list[int] = Field(
-        default_factory=list, description="List of admin user IDs with full access"
+    admin_user_id: int = Field(default=0, description="Admin user ID with full access")
+    manager_telegram: list[int] = Field(
+        default_factory=list, description="List of manager Telegram user IDs"
     )
     webhook_url: str | None = Field(
         default=None, description="Webhook URL for production deployment"
@@ -39,13 +40,42 @@ class TelegramConfig(BaseModel):
             return ConfigurationValidators.validate_telegram_token(v)
         return v
 
-    @field_validator("admin_user_ids")
+    @field_validator("admin_user_id")
     @classmethod
-    def validate_admin_user_ids(cls, v: list[int]) -> list[int]:
-        """Validate admin user IDs are positive integers."""
+    def validate_admin_user_id(cls, v: int) -> int:
+        """Validate admin user ID is positive integer."""
+        if v <= 0:
+            raise ValueError(f"Invalid admin user ID: {v}")
+        return v
+
+    @field_validator("manager_telegram", mode="before")
+    @classmethod
+    def validate_manager_telegram(cls, v: list[int] | str) -> list[int]:
+        """Validate manager Telegram IDs are positive integers."""
+        # Handle string input from environment variables
+        if isinstance(v, str):
+            # Parse string like "[379336096]" or "379336096,123456789"
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                # Parse JSON-like format
+                import json
+
+                try:
+                    v = json.loads(v)
+                except json.JSONDecodeError:
+                    # Try parsing as comma-separated
+                    v = v[1:-1].split(",")
+            else:
+                # Parse as comma-separated
+                v = v.split(",")
+
+            # Convert to integers
+            v = [int(x.strip()) for x in v if x.strip()]
+
+        # Validate all user IDs
         for user_id in v:
             if user_id <= 0:
-                raise ValueError(f"Invalid admin user ID: {user_id}")
+                raise ValueError(f"Invalid manager user ID: {user_id}")
 
         return list(set(v))  # Remove duplicates
 
@@ -54,7 +84,7 @@ class RapiraApiConfig(BaseModel):
     """Rapira API configuration."""
 
     base_url: str = Field(
-        default="https://api.rapira.exchange", description="Rapira API base URL"
+        default="https://api.rapira.net", description="Rapira API base URL"
     )
     api_key: str = Field(
         default="", description="Rapira API authentication key", min_length=0
@@ -329,6 +359,7 @@ class Settings(BaseSettings):
         "case_sensitive": False,
         "env_nested_delimiter": "__",
         "extra": "allow",
+        "populate_by_name": True,
     }
 
     def get_currency_pair(self, pair_string: str) -> CurrencyPair | None:

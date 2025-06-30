@@ -82,10 +82,8 @@ class Settings(BaseSettings):
 
     @property
     def admin_user_id(self) -> int:
-        """Get first admin user ID (backward compatibility)."""
-        if self.telegram.admin_user_ids:
-            return self.telegram.admin_user_ids[0]
-        return 0
+        """Get admin user ID (backward compatibility)."""
+        return self.telegram.admin_user_id
 
     @property
     def rapira_api_url(self) -> str:

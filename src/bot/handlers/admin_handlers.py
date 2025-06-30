@@ -58,7 +58,7 @@ class AdminService:
         Returns:
             True if user is admin, False otherwise
         """
-        return user_id in self.settings.telegram.admin_user_ids
+        return user_id == self.settings.telegram.admin_user_id
 
     def get_current_markup(self, pair_string: str) -> float:
         """Get current markup rate for currency pair.

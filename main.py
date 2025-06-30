@@ -170,7 +170,7 @@ async def on_startup() -> None:
     logging.info(f"🔧 Debug mode: {settings.application.debug}")
     pairs_count = len(settings.supported_pairs_list)
     logging.info(f"💱 Supported pairs: {pairs_count}")
-    admin_count = len(settings.telegram.admin_user_ids)
+    admin_count = 1 if settings.telegram.admin_user_id > 0 else 0
     logging.info(f"👥 Admin users: {admin_count}")
 
     logging.info("✅ Bot startup completed successfully!")
